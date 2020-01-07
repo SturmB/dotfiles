@@ -15,7 +15,7 @@ export ZSH="/home/sturm/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME=powerlevel10k/powerlevel10k
+ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -81,7 +81,6 @@ plugins=(
 	zsh-completions
 	zsh-autosuggestions
 )
-
 autoload -U compinit && compinit
 
 source $ZSH/oh-my-zsh.sh
@@ -112,6 +111,14 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# This was inserted during fzf's installer. NJ version is below.
+# [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+source $(dirname $(gem which colorls))/tab_complete.sh
+
 # Limit number of lines and entries in the history.
 #export HISTFILESIZE=50000
 #export HISTSIZE=50000
@@ -135,7 +142,7 @@ source $ZSH/oh-my-zsh.sh
 #   Requires: https://github.com/junegunn/fzf (to use fzf in general)
 #   Requires: https://github.com/BurntSushi/ripgrep (for using rg below)
 export FZF_DEFAULT_COMMAND="rg --files --hidden --follow --glob '!.git'"
-[ -f "$HOME/.fzf.bash" ] && source "$HOME/.fzf.bash"
+[ -f "$HOME/.fzf.zsh" ] && source "$HOME/.fzf.zsh"
 
 # WSL (Windows Subsystem for Linux) specific settings.
 if grep -qE "(Microsoft|WSL)" /proc/version &>/dev/null; then
@@ -144,6 +151,3 @@ if grep -qE "(Microsoft|WSL)" /proc/version &>/dev/null; then
       umask 0022
     fi
 fi
-
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

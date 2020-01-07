@@ -14,6 +14,14 @@ fi
 #alias la="ls -A"
 #alias l="ls -CF"
 
+# Requires "Color LS": https://github.com/athityakumar/colorls
+# which, in turn, requires Ruby.
+alias ls="colorls"
+
+alias l='ls -la --sd'
+alias ll='ls -l'
+alias la='ls -lA --sd'
+
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 vdiff () {
