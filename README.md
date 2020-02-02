@@ -2,6 +2,25 @@
 
 The dotfiles needed for my typical WSL setup.
 
+## WLinux
+
+1. Download and install Docker Desktop.
+2. Install Pengwin
+3. Run `pengwin-setup` and choose MAINTENANCE, PROGRAMMING, SERVICES, SETTINGS, and TOOLS
+   1. For MAINTENTNACE, choose HOMEBACKUP
+   2. For PROGRAMMING, choose NODEJS and RUBY (no need for Rails)
+   3. For SERVICES, choose KEYCHAIN
+   4. For SETTINGS, choose EXPLORER, COLORTOOL, and SHELLS
+      1. For SHELLS, choose ZSH
+   5. For TOOLS, choose CLOUDCLI, DOCKER, and POWERSHELL
+4. ?? Install yarn: `npm install -g yarn@berry`
+5. Install cowsay: `yarn global add cowsay`
+6. Install lolcat: `gem install lolcat`
+7. Install tmux
+8. Install tmux-resurrect
+
+---
+
 ## CMDer
 
 ### Tasks
