@@ -1,3 +1,11 @@
 [user]
 	email = chris@chrismcgee.info
 	name = Chris McGee
+[color]
+	ui = auto
+[core]
+	editor = code --wait
+[diff]
+	tool = default-difftool
+[difftool "default-difftool"]
+	cmd = code --wait --diff $LOCAL $REMOTE

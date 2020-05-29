@@ -151,3 +151,13 @@ if grep -qE "(Microsoft|WSL)" /proc/version &>/dev/null; then
       umask 0022
     fi
 fi
+
+export DO_API_TOKEN=9909d5d61594f8963cbd1999139327fb89bd3e26f5fe1367dd9e7ef12f63cdd3
+
+export PATH="$HOME/bin:$HOME/.composer/vendor/bin:$PATH"
+export PATH="/home/sturm/.pyenv/bin:$PATH"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="/c/laragon/bin/php/php-7.2.19-Win32-VC15-x64:$PATH"
