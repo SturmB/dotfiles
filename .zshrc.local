@@ -65,6 +65,9 @@ if grep -qE "(Microsoft|WSL)" /proc/version &>/dev/null; then
     fi
 fi
 
+# Fix for loading Ruby & gems
+source /etc/profile.d/rubygems.sh
+
 export DO_API_TOKEN=9909d5d61594f8963cbd1999139327fb89bd3e26f5fe1367dd9e7ef12f63cdd3
 
 export PATH="$HOME/bin:$HOME/.composer/vendor/bin:$PATH"
