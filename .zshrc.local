@@ -25,7 +25,7 @@
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-#[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # This was inserted during fzf's installer. NJ version is below.
 # [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
