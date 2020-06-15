@@ -65,8 +65,11 @@ if grep -qE "(Microsoft|WSL)" /proc/version &>/dev/null; then
     fi
 fi
 
-# Fix for loading Ruby & gems
-source /etc/profile.d/rubygems.sh
+# Load SSH keys
+if [ -z "$SSH_AUTH_SOCK" ] ; then
+  eval `ssh-agent -s`
+  ssh-add
+fi
 
 export DO_API_TOKEN=9909d5d61594f8963cbd1999139327fb89bd3e26f5fe1367dd9e7ef12f63cdd3
 
