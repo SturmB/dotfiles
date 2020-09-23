@@ -71,7 +71,7 @@ if [ -z "$SSH_AUTH_SOCK" ] ; then
   ssh-add
 fi
 
-export DO_API_TOKEN=9909d5d61594f8963cbd1999139327fb89bd3e26f5fe1367dd9e7ef12f63cdd3
+export DO_API_TOKEN=8f90a71407fcc93d39a8ad8254943a6adb82e6d6f14dd4e8e26b0a65f11aa767
 
 export PATH="$HOME/bin:$HOME/.composer/vendor/bin:$PATH"
 # Not sure why these Python-related lines are here. Commenting out for now.
