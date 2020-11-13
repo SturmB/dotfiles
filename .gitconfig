@@ -5,6 +5,7 @@
 	ui = auto
 [core]
 	editor = code --wait
+	autocrlf = true
 [diff]
 	tool = default-difftool
 [difftool "default-difftool"]
