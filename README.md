@@ -2,6 +2,10 @@
 
 The dotfiles needed for my typical WSL setup.
 
+## Windows Terminal
+
+1. Copy necessary parts from `./windows_terminal/settings.json` to `C:\Users\<username>\AppData\Local\Packages\Microsoft.WindowsTerminal_<hash>\LocalState\settings.json`.
+
 ## WLinux
 
 1. Download and install Docker Desktop.
