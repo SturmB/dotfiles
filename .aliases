@@ -18,9 +18,14 @@ fi
 # which, in turn, requires Ruby.
 alias lc="colorls"
 
-alias l='lc -la --sd'
-alias ll='lc -l'
-alias la='lc -lA --sd'
+#alias l='lc -la --sd'
+#alias ll='lc -l --sd'
+#alias la='lc -lA --sd'
+
+# This set assumes lsd is installed: https://github.com/Peltoche/lsd
+alias l='lsd -la'
+alias ll='lsd -l'
+alias la='lsd -lA'
 
 # Docker aliases
 alias dc='docker-compose'
