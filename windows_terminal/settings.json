@@ -57,7 +57,8 @@
         "acrylicOpacity": 0.85000002384185791,
         "colorScheme": "Purple Rain",
         "cursorColor": "#FFFFFD",
-        "fontFace": "Cascadia Code PL"
+        // "fontFace": "Cascadia Code PL"
+        "fontFace": "MesloLGS NF"
         // "experimental.retroTerminalEffect": true
       },
       {
