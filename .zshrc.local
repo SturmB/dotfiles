@@ -80,4 +80,4 @@ export PATH="$HOME/bin:$HOME/.composer/vendor/bin:$PATH"
 #eval "$(pyenv virtualenv-init -)"
 
 export PATH="$HOME/.local/bin:$PATH"
-export PATH="/c/laragon/bin/php/php-7.2.19-Win32-VC15-x64:$PATH"
+#export PATH="/c/laragon/bin/php/php-7.2.19-Win32-VC15-x64:$PATH"
