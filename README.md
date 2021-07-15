@@ -2,7 +2,7 @@
 
 The dotfiles needed for my typical WSL setup.
 
-## Windows Terminal
+<!-- ## Windows Terminal
 
 1. Copy necessary parts from `./windows_terminal/settings.json` to `C:\Users\<username>\AppData\Local\Packages\Microsoft.WindowsTerminal_<hash>\LocalState\settings.json`.
 
@@ -38,14 +38,32 @@ The "bash" task may have already been created.
 * Task name: `WSL::bash`
 * Task parameters: `-icon "%USERPROFILE%\AppData\Local\lxss\bash.ico"`
 * Command: `set "PATH=%ConEmuBaseDirShort%\wsl;%PATH%" & %ConEmuBaseDirShort%\conemu-cyg-64.exe --wsl -cur_console:pm:/mnt`
-
+ -->
 ---
 
 ## Other Utilities
 
+### 1Password
+
+### Dexpot
+
+### Discord
+
 ### Ditto
 
 1. Download and install [Ditto](https://ditto-cp.sourceforge.io/)
+
+### Dropbox
+
+### EarTrumpet
+
+From the Microsoft Store
+
+### Everything
+
+### Glary Utilities (maybe)
+
+### JetBrains Toolbox
 
 ### Keypirinha
 
@@ -83,3 +101,11 @@ The "bash" task may have already been created.
 32. Add [keypirinha-git-fork](https://github.com/fran-f/keypirinha-git-fork) (for future use)
 33. ~~Add [keypirinha-goggalaxy](https://github.com/Torben2000/keypirinha-goggalaxy) (for home only, requires additional setup)~~ (I don't like the icons it creates)
     * ~~Download & Install [WebP](https://storage.googleapis.com/downloads.webmproject.org/releases/webp/index.html)~~
+
+### PicPick
+
+### ShareX
+
+### TextExpander
+
+### Yubico Authenticator
