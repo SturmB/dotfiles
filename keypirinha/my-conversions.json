@@ -1,0 +1,13 @@
+{
+	"measures": {
+		"Font Size": {
+			"desc": "Convert units of font sizes",
+			"units": {
+				"Ems": { "factor": "1", "aliases": ["em"]},
+				"Pixels": { "factor": "1/16", "aliases": ["px"]},
+				"Points": { "factor": "1/12", "aliases": ["pt"]},
+				"Percent": { "factor": "1/100", "aliases": ["%", "pct"]}
+			}
+		}
+	}
+}
