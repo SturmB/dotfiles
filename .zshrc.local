@@ -69,6 +69,7 @@ fi
 if [ -z "$SSH_AUTH_SOCK" ] ; then
   eval `ssh-agent -s`
   ssh-add
+  ssh-add ~/.ssh/id_gitlab
 fi
 
 export DO_API_TOKEN=8f90a71407fcc93d39a8ad8254943a6adb82e6d6f14dd4e8e26b0a65f11aa767
