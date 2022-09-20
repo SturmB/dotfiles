@@ -69,7 +69,8 @@ fi
 if [ -z "$SSH_AUTH_SOCK" ] ; then
   eval `ssh-agent -s`
   ssh-add
-  ssh-add ~/.ssh/id_gitlab
+  ssh-add ~/.ssh/id_ed25519_iel
+  ssh-add ~/.ssh/id_rsa_personal
 fi
 
 export DO_API_TOKEN=8f90a71407fcc93d39a8ad8254943a6adb82e6d6f14dd4e8e26b0a65f11aa767
@@ -82,3 +83,11 @@ export PATH="$HOME/bin:$HOME/.composer/vendor/bin:$PATH"
 
 export PATH="$HOME/.local/bin:$PATH"
 #export PATH="/c/laragon/bin/php/php-7.2.19-Win32-VC15-x64:$PATH"
+
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$PATH:$JAVA_HOME/bin
+
+export ANDROID_HOME=~/dev/android
+PATH=$ANDROID_HOME/cmdline-tools/tools:$PATH
+PATH=$ANDROID_HOME/cmdline-tools/tools/bin:$PATH
+PATH=$ANDROID_HOME/platform-tools:$PATH

@@ -77,3 +77,7 @@ alias follow="namei -om"
 alias diff="diff --color -u"
 
 alias mklink=" . mklink.sh"
+
+alias adb="~/dev/android/platform-tools/adb"
+
+alias sail='[ -f sail ] && bash sail || bash vendor/bin/sail'
