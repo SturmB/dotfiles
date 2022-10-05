@@ -1,38 +1,26 @@
-// To view the default settings, hold "alt" while clicking on the "Settings" button.
-// For documentation on these settings, see: https://aka.ms/terminal-documentation
 {
+    "$help": "https://aka.ms/terminal-documentation",
     "$schema": "https://aka.ms/terminal-profiles-schema",
-    // Add custom keybindings to this array.
-    // To unbind a key combination from your defaults.json, set the command to "unbound".
-    // To learn more about keybindings, visit https://aka.ms/terminal-keybindings
-    "actions": 
+    "actions":
     [
-        // Copy and paste are bound to Ctrl+Shift+C and Ctrl+Shift+V in your defaults.json.
-        // These two lines additionally bind them to Ctrl+C and Ctrl+V.
-        // To learn more about selection, visit https://aka.ms/terminal-selection
         {
-            "command": 
+            "command":
             {
                 "action": "copy",
                 "singleLine": false
             },
             "keys": "ctrl+c"
         },
-        // Press Ctrl+Shift+F to open the search box
+        {
+            "command": "paste",
+            "keys": "ctrl+v"
+        },
         {
             "command": "find",
             "keys": "ctrl+shift+f"
         },
         {
-            "command": "paste",
-            "keys": "ctrl+v"
-        },
-        // Press Alt+Shift+D to open a new pane.
-        // - "split": "auto" makes this pane open in the direction that provides the most surface area.
-        // - "splitMode": "duplicate" makes the new pane use the focused pane's profile.
-        // To learn more about panes, visit https://aka.ms/terminal-panes
-        {
-            "command": 
+            "command":
             {
                 "action": "splitPane",
                 "split": "auto",
@@ -43,51 +31,54 @@
     ],
     "copyFormatting": "all",
     "copyOnSelect": true,
-    "defaultProfile": "{2c4de342-38b7-51cf-b940-2309a097f518}",
-    "profiles": 
+    "defaultProfile": "{51855cb2-8cce-5362-8f54-464b92b32386}",
+    "profiles":
     {
-        "defaults": {
-          // Put settings here that you want to apply to all profiles.
-        },
-        "list": 
+        "defaults": {},
+        "list":
         [
             {
-                "acrylicOpacity": 0.80000000000000004,
-                "colorScheme": "Night Owl",
-                "cursorColor": "#80A4C2",
-                "cursorShape": "filledBox",
-                "fontFace": "JetBrainsMono NF",
-                "guid": "{2c4de342-38b7-51cf-b940-2309a097f518}",
+                "colorScheme": "Solarized Dark Higher Contrast",
+                "cursorColor": "#09B4BD",
+                "font":
+                {
+                    "face": "TerminessTTF Nerd Font",
+                    "size": 16
+                },
+                "guid": "{51855cb2-8cce-5362-8f54-464b92b32386}",
                 "hidden": false,
                 "name": "Ubuntu",
-                "snapOnInput": true,
-                "source": "Windows.Terminal.Wsl",
-                "startingDirectory": "//wsl$/Ubuntu/home/sturm",
+                "opacity": 80,
+                "source": "CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc",
                 "useAcrylic": true
             },
             {
-                "acrylicOpacity": 0.85000002384185791,
                 "colorScheme": "Purple Rain",
-                "commandline": "powershell.exe",
+                "commandline": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
                 "cursorColor": "#FFFFFD",
-                "fontFace": "MesloLGS NF",
+                "font":
+                {
+                    "face": "MesloLGS NF"
+                },
                 "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
                 "hidden": false,
                 "name": "Windows PowerShell",
+                "opacity": 85,
                 "useAcrylic": true
             },
             {
                 "colorScheme": "Retro",
-                "commandline": "cmd.exe",
-                "cursorColor": "#FFFFFF",
-                "cursorShape": "filledBox",
+                "commandline": "%SystemRoot%\\System32\\cmd.exe",
+                "cursorShape": "vintage",
                 "experimental.retroTerminalEffect": true,
-                "fontFace": "PxPlus IBM VGA 8x16",
-                "fontSize": 16,
+                "font":
+                {
+                    "face": "PxPlus IBM VGA 8x16",
+                    "size": 16
+                },
                 "guid": "{0caa0dad-35be-5f56-a8ff-afceeeaa6101}",
                 "hidden": false,
                 "name": "Command Prompt",
-                "padding": "5, 5, 5, 5",
                 "tabTitle": "Command Prompt"
             },
             {
@@ -98,7 +89,7 @@
             }
         ]
     },
-    "schemes": 
+    "schemes":
     [
         {
             "background": "#1A1A1A",
@@ -513,6 +504,29 @@
             "selectionBackground": "#FFFFFF",
             "white": "#D3D7CF",
             "yellow": "#C4A000"
+        },
+        {
+            "background": "#300A24",
+            "black": "#171421",
+            "blue": "#0037DA",
+            "brightBlack": "#767676",
+            "brightBlue": "#08458F",
+            "brightCyan": "#2C9FB3",
+            "brightGreen": "#26A269",
+            "brightPurple": "#A347BA",
+            "brightRed": "#C01C28",
+            "brightWhite": "#F2F2F2",
+            "brightYellow": "#A2734C",
+            "cursorColor": "#FFFFFF",
+            "cyan": "#3A96DD",
+            "foreground": "#FFFFFF",
+            "green": "#26A269",
+            "name": "Ubuntu-ColorScheme",
+            "purple": "#881798",
+            "red": "#C21A23",
+            "selectionBackground": "#FFFFFF",
+            "white": "#CCCCCC",
+            "yellow": "#A2734C"
         },
         {
             "background": "#000000",
