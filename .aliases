@@ -23,8 +23,8 @@ alias lc="colorls"
 #alias la='lc -lA --sd'
 
 # This set assumes lsd is installed: https://github.com/Peltoche/lsd
-alias l='lsd -la --group-directories-first'
-alias ll='lsd -l --group-directories-first'
+alias ll='lsd -la --group-directories-first'
+alias l='lsd -l --group-directories-first'
 alias la='lsd -lA --group-directories-first'
 
 # Docker aliases
