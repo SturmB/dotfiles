@@ -16,10 +16,6 @@
             "keys": "ctrl+v"
         },
         {
-            "command": "find",
-            "keys": "ctrl+shift+f"
-        },
-        {
             "command":
             {
                 "action": "splitPane",
@@ -27,11 +23,21 @@
                 "splitMode": "duplicate"
             },
             "keys": "alt+shift+d"
+        },
+        {
+            "command": "find",
+            "keys": "ctrl+shift+f"
         }
     ],
-    "copyFormatting": "all",
+    "copyFormatting": "none",
     "copyOnSelect": true,
     "defaultProfile": "{51855cb2-8cce-5362-8f54-464b92b32386}",
+    "newTabMenu":
+    [
+        {
+            "type": "remainingProfiles"
+        }
+    ],
     "profiles":
     {
         "defaults": {},
@@ -42,7 +48,7 @@
                 "cursorColor": "#09B4BD",
                 "font":
                 {
-                    "face": "TerminessTTF Nerd Font",
+                    "face": "Terminess Nerd Font Mono",
                     "size": 16
                 },
                 "guid": "{51855cb2-8cce-5362-8f54-464b92b32386}",
@@ -58,7 +64,7 @@
                 "cursorColor": "#FFFFFD",
                 "font":
                 {
-                    "face": "MesloLGS NF"
+                    "face": "MesloLGS Nerd Font Mono"
                 },
                 "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
                 "hidden": false,
@@ -574,5 +580,6 @@
             "white": "#FEFEFE",
             "yellow": "#FEDE5D"
         }
-    ]
+    ],
+    "themes": []
 }
