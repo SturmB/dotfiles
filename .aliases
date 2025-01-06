@@ -80,4 +80,20 @@ alias mklink=" . mklink.sh"
 
 alias adb="~/dev/android/platform-tools/adb"
 
+# Development Aliases
+
 alias sail='[ -f sail ] && bash sail || bash vendor/bin/sail'
+
+tf() {
+    [ -f sail ] && sail artisan test --exclude-testsuite=Integration --filter=$1
+}
+
+alias lint='[[ -f sail && -f ./vendor/bin/duster ]] && sail shell -c "./vendor/bin/duster lint"'
+alias lint-fix='[[ -f sail && -f ./vendor/bin/duster ]] && sail shell -c "./vendor/bin/duster fix"'
+alias test-cov='[ -f sail ] && sail artisan test --compact --exclude-testsuite=Integration'
+alias test='[ -f sail ] && sail artisan test --compact --no-coverage --exclude-testsuite=Integration'
+alias test-int='[ -f sail ] && sail artisan test --compact --testsuite=Integration'
+alias stan='[[ -f sail && -f ./vendor/bin/phpstan ]] && sail shell -c "./vendor/bin/phpstan analyze"'
+
+alias precommit='lint-fix && lint && stan && test-cov'
+alias precommit-fe='sail npm run format && sail npm run test:run'
