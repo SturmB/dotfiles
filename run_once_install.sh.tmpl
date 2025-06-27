@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+# -----------------------------------------------------------------------------
+# Install Zsh
+# -----------------------------------------------------------------------------
+if ! command -v zsh >/dev/null 2>&1; then
+  sudo apt install -y zsh
+fi
+
+# -----------------------------------------------------------------------------
+# Install Oh My Zsh
+# -----------------------------------------------------------------------------
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+fi
+
+# -----------------------------------------------------------------------------
+# Install Powerlevel10k
+# -----------------------------------------------------------------------------
+if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
+    "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+fi
+
+# -----------------------------------------------------------------------------
+# List of external Oh My Zsh plugins to install.
+# To add/remove plugins in the future, just edit this array.
+# -----------------------------------------------------------------------------
+OMZ_PLUGINS=(
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+  zsh-history-substring-search
+)
+
+# -----------------------------------------------------------------------------
+# Install each plugin if it isn't already present
+# -----------------------------------------------------------------------------
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+for plugin in "${OMZ_PLUGINS[@]}"; do
+  dest="$ZSH_CUSTOM/plugins/$plugin"
+  if [ ! -d "$dest" ]; then
+    git clone "https://github.com/zsh-users/$plugin" "$dest"
+  fi
+done
