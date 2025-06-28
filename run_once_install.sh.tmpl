@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+{{ if ne .chezmoi.osRelease.id "cachyos" }}
+
 # -----------------------------------------------------------------------------
 # Install Zsh
 # -----------------------------------------------------------------------------
@@ -42,3 +44,5 @@ for plugin in "${OMZ_PLUGINS[@]}"; do
     git clone "https://github.com/zsh-users/$plugin" "$dest"
   fi
 done
+
+{{ end }}
