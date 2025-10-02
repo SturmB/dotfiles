@@ -17,12 +17,12 @@ tf() {
 
 alias lint='[[ -f sail && -f ./vendor/bin/duster ]] && sail shell -c "./vendor/bin/duster lint"'
 alias lint-fix='[[ -f sail && -f ./vendor/bin/duster ]] && sail shell -c "./vendor/bin/duster fix"'
-alias phpunit-cov='[ -f sail ] && sail artisan test --compact --exclude-testsuite=Integration'
-alias phpunit='[ -f sail ] && sail artisan test --compact --no-coverage --exclude-testsuite=Integration'
-alias phpunit-int='[ -f sail ] && sail artisan test --compact --testsuite=Integration'
-alias pest='[ -f sail ] && sail pest --compact --exclude-testsuite=Integration'
+alias pest-cov='[ -f sail ] && sail artisan test --compact --parallel --exclude-testsuite=Integration'
+alias pest='[ -f sail ] && sail artisan test --compact --parallel --no-coverage --exclude-testsuite=Integration'
+alias pest-int='[ -f sail ] && sail artisan test --compact --parallel --testsuite=Integration'
+alias pp='[ -f sail ] && sail pest --compact --parallel --exclude-testsuite=Integration'
 alias stan='[[ -f sail && -f ./vendor/bin/phpstan ]] && sail shell -c "./vendor/bin/phpstan analyze"'
 alias rector='[[ ./vendor/bin/rector ]] && ./vendor/bin/rector'
 
-alias precommit='lint-fix && lint && rector && stan && phpunit-cov'
+alias precommit='rector && lint-fix && lint && stan && pest-cov'
 alias precommit-fe='sail npm run format && sail npm run test:run'
