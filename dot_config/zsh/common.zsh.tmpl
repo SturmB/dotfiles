@@ -1,0 +1,33 @@
+{{- if eq .chezmoi.osRelease.id "cachyos" -}}
+{{-   $omz := "/usr/share/oh-my-zsh" -}}
+{{-   $plug := "/usr/share/zsh/plugins" -}}
+export ZSH="{{ $omz }}"
+plugins=(git fzf extract)
+source "$ZSH/oh-my-zsh.sh"
+
+# External plugins (system paths on CachyOS)
+source "{{ $plug }}/zsh-autosuggestions/zsh-autosuggestions.zsh"
+source "{{ $plug }}/zsh-history-substring-search/zsh-history-substring-search.zsh"
+{{- else -}}
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_CUSTOM="${ZSH_CUSTOM:-$ZSH/custom}"
+plugins=(git fzf extract)
+source "$ZSH/oh-my-zsh.sh"
+
+# External plugins (installed under ZSH_CUSTOM by the installer)
+source "$ZSH_CUSTOM/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+source "$ZSH_CUSTOM/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh"
+{{- end }}
+
+# History behavior (ported from cachyos-config)
+export HISTCONTROL=ignoreboth
+export HISTORY_IGNORE="(&|[bf]g|c|clear|history|exit|q|pwd|* --help)"
+setopt SHARE_HISTORY
+
+# Coloured man pages
+export LESS_TERMCAP_md="$(tput bold 2>/dev/null; tput setaf 2 2>/dev/null)"
+export LESS_TERMCAP_me="$(tput sgr0 2>/dev/null)"
+
+# history-substring-search key bindings
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
