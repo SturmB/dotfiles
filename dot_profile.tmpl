@@ -1,0 +1,6 @@
+# ~/.profile — on hosts whose login shell is sh (Synology), hop into bash for Starship.
+{{ if .server -}}
+if [ -n "$PS1" ] && command -v bash >/dev/null 2>&1 && [ -z "$BASH_VERSION" ]; then
+  exec bash
+fi
+{{- end }}

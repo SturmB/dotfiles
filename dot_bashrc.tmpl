@@ -1,0 +1,13 @@
+# ~/.bashrc — managed by chezmoi. Used as the interactive shell on hosts without zsh (Synology).
+case $- in *i*) ;; *) return ;; esac   # interactive only
+
+export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+
+# Guarded core aliases (binaries may be absent on a NAS)
+command -v lsd >/dev/null 2>&1 && alias ls='lsd' && alias lt='ls --tree'
+alias l='ls -l'; alias la='ls -a'; alias ll='ls -la'; alias c='clear'
+
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init --cmd cd bash)"
+
+# Prompt
+command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"
