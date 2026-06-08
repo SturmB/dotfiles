@@ -1,0 +1,16 @@
+{{- $profile := promptChoiceOnce . "profile" "Machine profile" (list "personal" "work" "server") -}}
+{{- $personal := eq $profile "personal" -}}
+{{- $work := or (eq $profile "personal") (eq $profile "work") -}}
+{{- $server := eq $profile "server" -}}
+
+encryption = "age"
+
+[age]
+    identity = "{{ .chezmoi.homeDir }}/key.txt"
+    recipient = "age1wkyq6s5pc5sn76f34073t537j6smctclt6dystnhrp9q3lc59eqqftd4zm"
+
+[data]
+    profile  = {{ $profile | quote }}
+    personal = {{ $personal }}
+    work     = {{ $work }}
+    server   = {{ $server }}
