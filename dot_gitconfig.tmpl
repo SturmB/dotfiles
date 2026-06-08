@@ -1,0 +1,30 @@
+[user]
+{{- if .personal }}
+    name = Chris McGee
+    email = chris@chrismcgee.info
+{{- else }}
+    name = Chris McGee
+    email = cpmcgee@intxlog.com
+{{- end }}
+
+[init]
+    defaultBranch = main
+
+[http]
+    lowSpeedLimit = 1000
+    lowSpeedTime = 60
+    postBuffer = 524288000
+
+[credential "https://github.com"]
+    helper =
+    helper = !/usr/bin/gh auth git-credential
+
+[credential "https://gist.github.com"]
+    helper =
+    helper = !/usr/bin/gh auth git-credential
+
+{{ if .personal }}
+# Work repos under ~/dev/intxlog use the work identity
+[includeIf "gitdir:~/dev/intxlog/"]
+    path = ~/.gitconfig-work
+{{ end }}
