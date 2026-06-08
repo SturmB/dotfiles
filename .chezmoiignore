@@ -1,0 +1,4 @@
+{{ if not .work }}
+.ssh/id_ed25519_iel
+.ssh/id_ed25519_iel.pub
+{{ end }}

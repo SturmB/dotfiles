@@ -1,0 +1,43 @@
+{{ if .work }}
+# iel (work) GitHub
+Host github.com-iel
+        HostName github.com
+        User git
+        IdentityFile ~/.ssh/id_ed25519_iel
+        IdentitiesOnly yes
+{{ end }}
+{{ if .personal }}
+# personal GitHub
+Host github.com-personal
+        HostName github.com
+        User git
+        IdentityFile ~/.ssh/id_ed25519
+
+Host gamma
+        HostName 192.168.50.10
+        User sturm
+        Port 222
+        IdentityFile ~/.ssh/id_ed25519
+        IdentitiesOnly yes
+
+Host solamnia
+        HostName 192.168.50.15
+        User kerban
+        Port 22
+        IdentityFile ~/.ssh/id_ed25519
+        IdentitiesOnly yes
+        ForwardX11 yes
+        ForwardX11Trusted yes
+
+Host steamdeck
+        HostName 192.168.50.113
+        User deck
+        IdentityFile ~/.ssh/id_ed25519
+        IdentitiesOnly yes
+
+Host pihole
+        HostName 192.168.50.5
+        User kerban
+        IdentityFile ~/.ssh/id_ed25519
+        IdentitiesOnly yes
+{{ end }}
