@@ -1,0 +1,82 @@
+# ~/.aliases — managed by chezmoi (layered). Edit the source template.
+
+# ── Core: ls (lsd if present, else system ls) ────────────────────
+if command -v lsd >/dev/null 2>&1; then
+  alias ls='lsd'
+  alias lt='ls --tree'
+fi
+alias l='ls -l'
+alias la='ls -a'
+alias ll='ls -la'
+
+{{ if not .server }}
+# ── Dev (Laravel/PHP — local) — workstations only ────────────────
+alias sail='[ -f sail ] && bash sail || bash vendor/bin/sail'
+alias pest='php artisan test --compact --parallel --no-coverage --exclude-testsuite=Integration'
+alias pest-cov='php artisan test --compact --parallel --exclude-testsuite=Integration'
+alias pest-int='php artisan test --compact --parallel --testsuite=Integration'
+tf() { php artisan test --exclude-testsuite=Integration --filter=$1; }
+alias pp='./vendor/bin/pest --compact --parallel --exclude-testsuite=Integration'
+alias stan='./vendor/bin/phpstan analyze'
+alias lint='./vendor/bin/duster lint'
+alias lint-fix='./vendor/bin/duster fix'
+alias rector='./vendor/bin/rector'
+alias precommit='rector && lint-fix && lint && stan && pest-cov'
+alias precommit-fe='npm run format && npm run test'
+
+# ── Dev (Sail variants) ──────────────────────────────────────────
+alias spest='sail artisan test --compact --parallel --no-coverage --exclude-testsuite=Integration'
+alias spest-cov='sail artisan test --compact --parallel --exclude-testsuite=Integration'
+alias spest-int='sail artisan test --compact --parallel --testsuite=Integration'
+stf() { sail artisan test --exclude-testsuite=Integration --filter=$1; }
+alias spp='sail pest --compact --parallel --exclude-testsuite=Integration'
+alias sstan='sail shell -c "./vendor/bin/phpstan analyze"'
+alias srector='sail shell -c "./vendor/bin/rector"'
+alias slint='sail shell -c "./vendor/bin/duster lint"'
+alias slint-fix='sail shell -c "./vendor/bin/duster fix"'
+alias sprecommit='srector && slint-fix && slint && sstan && spest-cov'
+alias sprecommit-fe='sail npm run format && sail npm run test'
+{{ end }}
+
+# ── Core: misc ───────────────────────────────────────────────────
+alias c="clear"
+alias dq='tmux kill-session'
+claude-review() { claude --dangerously-skip-permissions "/code-review $*"; }
+
+{{ if .work }}
+# ── Work: Nexus runtime switch (Sail ⇄ Lerd) ─────────────────────
+NEXUS_DIR="$HOME/dev/intxlog/nexus"
+nexus-sail() {
+    ( builtin cd "$NEXUS_DIR" || return 1
+      lerd pause nexus 2>/dev/null
+      systemctl --user stop lerd-vite-nexus lerd-reverb-nexus 2>/dev/null
+      cp .env.sail .env && echo "→ Nexus .env = Sail (http://localhost)"
+      cp .env.testing.sail .env.testing && echo "→ Nexus .env.testing = Sail"
+      sail up -d )
+}
+nexus-lerd() {
+    ( builtin cd "$NEXUS_DIR" || return 1
+      [ -f .env.lerd ] && [ -f .env.testing.lerd ] || { echo "missing .env.lerd / .env.testing.lerd"; return 1; }
+      sail down 2>/dev/null
+      cp .env.lerd .env && echo "→ Nexus .env = Lerd (https://nexus.test)"
+      cp .env.testing.lerd .env.testing && echo "→ Nexus .env.testing = Lerd"
+      lerd unpause nexus && lerd start
+      systemctl --user start lerd-vite-nexus lerd-reverb-nexus 2>/dev/null
+      echo "Open: https://nexus.test" )
+}
+{{ end }}
+
+{{ if .personal }}
+# ── Personal: StreamController recovery ──────────────────────────
+fix-streamcontroller() {
+    echo "Killing StreamController processes..."
+    pkill -f StreamController 2>/dev/null
+    sleep 1
+    echo "Resetting Stream Deck XL USB device..."
+    sudo usbreset 0fd9:006c
+    echo "Relaunching StreamController..."
+    flatpak run com.core447.StreamController &>/dev/null &
+    disown
+    echo "Done."
+}
+{{ end }}
