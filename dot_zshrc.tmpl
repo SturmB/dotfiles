@@ -1,21 +1,64 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
+# ~/.zshrc — managed by chezmoi. Do not edit directly; edit the source template.
 
-{{ if (eq .chezmoi.osRelease.id "cachyos") }}
-source /usr/share/cachyos-zsh-config/cachyos-config.zsh
-{{ else }}
-source "${HOME}/.config/zsh/portable-config.zsh"
-{{ end }}
+# Base shell config: OMZ + plugins + history (distro-aware)
+source "${HOME}/.config/zsh/common.zsh"
 
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+{{ if eq .chezmoi.osRelease.id "cachyos" -}}
+# Arch-only aliases
+source "${HOME}/.config/zsh/cachyos.zsh"
+{{- end }}
 
-source /home/kerban/.aliases
+# Aliases (layered: core / work / personal)
+source "${HOME}/.aliases"
 
+# Editor
 export VISUAL="code --wait"
 export EDITOR="$VISUAL"
-export PATH="$PATH:$HOME/.config/composer/vendor/bin"
+
+# PATH
+export PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.config/composer/vendor/bin"
+
+# PHP coverage driver
+export XDEBUG_MODE=coverage
+
+{{ if .work -}}
+# Jira auth type (token comes from ~/.secrets)
+export JIRA_AUTH_TYPE=basic
+{{- end }}
+
+# Node / tool version managers
+{{ if eq .profile "work" -}}
+# Work laptop: mise only (covers Node + PHP); nvm dropped
+export PATH="$HOME/.local/share/mise/shims:$PATH"
+command -v mise >/dev/null && eval "$(mise activate zsh)"
+{{- else if eq .profile "personal" -}}
+# Personal workstation: nvm + mise (unchanged for now)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+export PATH="$HOME/.local/share/mise/shims:$PATH"
+command -v mise >/dev/null && eval "$(mise activate zsh)"
+{{- end }}
+{{/* server profile: no node/version managers */}}
+
+# zoxide (cd replacement)
+eval "$(zoxide init --cmd cd zsh)"
+
+# fzf
+export FZF_BASE="/usr/share/fzf"
+
+# Secrets (age-decrypted on apply into ~/.secrets, mode 600)
+[[ -f "${HOME}/.secrets" ]] && source "${HOME}/.secrets"
+
+# Completions
+autoload -Uz compinit && compinit
+
+# Prompt
+eval "$(starship init zsh)"
+
+# Syntax highlighting MUST be sourced last
+{{ if eq .chezmoi.osRelease.id "cachyos" -}}
+source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+{{- else -}}
+source "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+{{- end }}
