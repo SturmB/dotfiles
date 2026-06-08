@@ -1,10 +1,10 @@
 [user]
-{{- if .personal }}
-    name = Chris McGee
-    email = chris@chrismcgee.info
-{{- else }}
+{{- if eq .profile "work" }}
     name = Chris McGee
     email = cpmcgee@intxlog.com
+{{- else }}
+    name = Chris McGee
+    email = chris@chrismcgee.info
 {{- end }}
 
 [init]
