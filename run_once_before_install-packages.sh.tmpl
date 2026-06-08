@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ if eq .chezmoi.osRelease.id "cachyos" -}}
+# ===== CachyOS: system already provides OMZ/plugins/tools ===================
+echo "[install] CachyOS — ensuring starship is present"
+command -v starship >/dev/null || sudo pacman -S --needed --noconfirm starship
+
+{{- else -}}
+# ===== Non-Arch: detect package manager at runtime ==========================
+if command -v apt >/dev/null 2>&1; then
+  # ---- Ubuntu / WSL / Ubuntu-server -----------------------------------------
+  echo "[install] apt base packages"
+  sudo apt update
+  sudo apt install -y zsh git curl build-essential unzip
+
+  echo "[install] Oh My Zsh"
+  if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  fi
+
+  ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+  echo "[install] external zsh plugins"
+  declare -A PLUGINS=(
+    [zsh-autosuggestions]=https://github.com/zsh-users/zsh-autosuggestions
+    [zsh-syntax-highlighting]=https://github.com/zsh-users/zsh-syntax-highlighting
+    [zsh-history-substring-search]=https://github.com/zsh-users/zsh-history-substring-search
+  )
+  for name in "${!PLUGINS[@]}"; do
+    dest="$ZSH_CUSTOM/plugins/$name"
+    [ -d "$dest" ] || git clone --depth=1 "${PLUGINS[$name]}" "$dest"
+  done
+
+  echo "[install] Starship"
+  command -v starship >/dev/null || sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- --yes
+
+  echo "[install] CLI tools (apt names: fd-find->fdfind, bat->batcat)"
+  sudo apt install -y fzf ripgrep fd-find bat zoxide
+  if ! command -v lsd >/dev/null || ! command -v eza >/dev/null; then
+    command -v cargo >/dev/null || sudo apt install -y cargo
+    command -v lsd  >/dev/null || cargo install lsd
+    command -v eza  >/dev/null || cargo install eza
+  fi
+  mkdir -p "$HOME/.local/bin"
+  [ -e "$HOME/.local/bin/fd" ]  || ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"  2>/dev/null || true
+  [ -e "$HOME/.local/bin/bat" ] || ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat" 2>/dev/null || true
+
+{{ if eq .profile "work" }}  echo "[install] mise (work profile)"
+  command -v mise >/dev/null || curl -fsSL https://mise.run | sh
+{{ end }}
+  echo "[install] set zsh as login shell"
+  if [ "$SHELL" != "$(command -v zsh)" ]; then
+    chsh -s "$(command -v zsh)" || echo "  (run 'chsh -s $(command -v zsh)' manually)"
+  fi
+
+{{ if not .server }}  echo "[install] generate a per-machine personal SSH key (if absent)"
+  if [ ! -f "$HOME/.ssh/id_ed25519" ]; then
+    ssh-keygen -t ed25519 -N "" -f "$HOME/.ssh/id_ed25519" -C "$(whoami)@$(hostname)"
+    echo "  >>> Register this pubkey with GitHub/servers:"; cat "$HOME/.ssh/id_ed25519.pub"
+  fi
+{{ end }}
+else
+  # ---- No package manager (Synology DSM / Gamma): Starship binary only ------
+  echo "[install] no apt — installing Starship static binary to ~/bin (bash entry point)"
+  mkdir -p "$HOME/bin"
+  command -v starship >/dev/null || sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- -b "$HOME/bin" -y
+  echo "[install] done — login lands in bash via ~/.profile; zsh/OMZ skipped (unavailable)"
+fi
+{{- end }}
