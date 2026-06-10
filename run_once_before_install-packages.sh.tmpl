@@ -6,6 +6,19 @@ set -euo pipefail
 echo "[install] CachyOS — ensuring starship is present"
 command -v starship >/dev/null || sudo pacman -S --needed --noconfirm starship
 
+{{ if .work }}echo "[install] jira-cli + confcli (work tooling)"
+aur_helper="$(command -v paru || command -v yay || true)"
+if [ -n "$aur_helper" ]; then
+  "$aur_helper" -S --needed --noconfirm jira-cli-bin
+else
+  echo "  (no AUR helper found — install jira-cli-bin manually)"
+fi
+CONFCLI_VERSION=0.2.6
+mkdir -p "$HOME/.local/bin"
+if ! confcli --version 2>/dev/null | grep -qF "$CONFCLI_VERSION"; then
+  curl -fsSL https://raw.githubusercontent.com/hochej/confcli/main/install.sh | INSTALL_DIR="$HOME/.local/bin" VERSION="$CONFCLI_VERSION" sh
+fi
+{{ end }}
 {{- else -}}
 # ===== Non-Arch: detect package manager at runtime ==========================
 if command -v apt >/dev/null 2>&1; then
@@ -47,6 +60,19 @@ if command -v apt >/dev/null 2>&1; then
 
 {{ if eq .profile "work" }}  echo "[install] mise (work profile)"
   command -v mise >/dev/null || curl -fsSL https://mise.run | sh
+{{ end }}
+{{ if .work }}  echo "[install] jira-cli + confcli (work tooling)"
+  JIRA_VERSION=1.7.0
+  if ! jira version 2>/dev/null | grep -qF "$JIRA_VERSION"; then
+    jira_tmp="$(mktemp -d)"
+    curl -fsSL "https://github.com/ankitpokhrel/jira-cli/releases/download/v${JIRA_VERSION}/jira_${JIRA_VERSION}_linux_x86_64.tar.gz" | tar -xz -C "$jira_tmp"
+    install -m755 "$jira_tmp"/jira_*/bin/jira "$HOME/.local/bin/jira"
+    rm -rf "$jira_tmp"
+  fi
+  CONFCLI_VERSION=0.2.6
+  if ! confcli --version 2>/dev/null | grep -qF "$CONFCLI_VERSION"; then
+    curl -fsSL https://raw.githubusercontent.com/hochej/confcli/main/install.sh | INSTALL_DIR="$HOME/.local/bin" VERSION="$CONFCLI_VERSION" sh
+  fi
 {{ end }}
   echo "[install] set zsh as login shell"
   if [ "$SHELL" != "$(command -v zsh)" ]; then
