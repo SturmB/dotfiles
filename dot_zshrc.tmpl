@@ -69,10 +69,6 @@ source "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highl
 # final one registered, the correct ordering for reliable directory tracking.
 # Safe to run after syntax-highlighting: zoxide defines `cd`/`z` functions and a
 # chpwd hook only, it does not wrap ZLE widgets.
-#
-# _ZO_DOCTOR=0 silences zoxide's "initialize me at the end" self-check. The
-# ordering above already satisfies it for normal interactive shells, but tools
-# that spawn zsh in non-standard ways (e.g. Claude Code's Bash tool) can still
-# trip the check; disabling the diagnostic is harmless once ordering is correct.
-export _ZO_DOCTOR=0
+# (zoxide's doctor self-check is silenced via _ZO_DOCTOR=0 in ~/.zshenv, which
+# also covers non-interactive snapshot shells that never source this file.)
 eval "$(zoxide init --cmd cd zsh)"

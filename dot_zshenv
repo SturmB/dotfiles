@@ -1,0 +1,13 @@
+# ~/.zshenv — managed by chezmoi. Sourced by EVERY zsh invocation (login,
+# interactive, and non-interactive/script), before ~/.zshrc.
+#
+# Put only environment variables that must be present in every shell here.
+
+# Silence zoxide's "initialize me at the end" self-check. Tools that source a
+# captured shell snapshot in a non-interactive zsh — notably Claude Code's Bash
+# tool, which prefixes every command with `cd <dir>` and so hits zoxide's `cd`
+# wrapper -> __zoxide_doctor — never run our ~/.zshrc `zoxide init`, so the hook
+# looks "missing" and the doctor warns on every command. Setting this in
+# .zshenv guarantees the var is present before any such shell runs. The actual
+# hook ordering in ~/.zshrc is already correct; this only mutes the diagnostic.
+export _ZO_DOCTOR=0
