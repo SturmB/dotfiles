@@ -46,9 +46,6 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
 # bare `php artisan migrate` runs host PHP and can't resolve Podman names like `lerd-postgres`.
 [ -d "$HOME/.local/share/lerd/bin" ] && export PATH="$HOME/.local/share/lerd/bin:$PATH"
 
-# zoxide (cd replacement)
-eval "$(zoxide init --cmd cd zsh)"
-
 # fzf
 export FZF_BASE="/usr/share/fzf"
 
@@ -61,9 +58,16 @@ autoload -Uz compinit && compinit
 # Prompt
 eval "$(starship init zsh)"
 
-# Syntax highlighting MUST be sourced last
+# Syntax highlighting MUST be sourced last among ZLE-wrapping plugins
 {{ if eq .chezmoi.osRelease.id "cachyos" -}}
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 {{- else -}}
 source "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 {{- end }}
+
+# zoxide (cd replacement) — initialized last so its precmd/chpwd hook is the
+# final one registered, which satisfies zoxide's _ZO_DOCTOR check (it warns
+# when anything hooks in after it, e.g. starship/syntax-highlighting). Safe to
+# run after syntax-highlighting: zoxide defines `cd`/`z` functions and a chpwd
+# hook only, it does not wrap ZLE widgets.
+eval "$(zoxide init --cmd cd zsh)"
