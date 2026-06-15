@@ -9,7 +9,10 @@
 # prerelease filter can't exclude them. Bump this when a newer stable 8.5.x ships.
 php = { version = "8.5.7", postinstall = "~/.config/php/install-extensions.sh" }
 {{ end -}}
-node = "24.16.0"
+# "lts" tracks the current Node LTS major (Krypton/24 today). A freshly scaffolded
+# machine installs the latest LTS automatically; move an existing machine forward
+# with `mise upgrade node` (deliberate, so an LTS major bump never lands mid-work).
+node = "lts"
 {{ if ne .chezmoi.osRelease.id "ubuntu" }}
 [env]
 # Appends to default configure options via the plugin's override mechanism.
