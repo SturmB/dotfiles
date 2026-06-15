@@ -1,0 +1,39 @@
+matches:
+  - trigger: ";adr"
+    replace: "2508 Elmo Place"
+
+  - trigger: ";emp"
+    replace: "sturm359@gmail.com"
+
+  - trigger: ";emw"
+    replace: "chris@chrismcgee.info"
+
+  - trigger: ";name"
+    replace: "Christopher P. McGee"
+
+  - trigger: ";nme"
+    replace: "Christopher McGee"
+
+  - trigger: ";me"
+    replace: "Chris McGee"
+
+  - trigger: ";ph"
+    replace: "(859) 489-4322"
+
+  - trigger: ";shrug"
+    replace: "¯\\_(ツ)_/¯"
+
+  - trigger: ";ssb"
+    replace: "Surprise Savings booster"
+
+  - trigger: ";fnd"
+    replace: "find . -type f -links 1 \\( -iname \"*.mkv\" -o -iname \"*.mp4\" \\)"
+
+  - trigger: ";twt"
+    replace: "https://www.twitch.tv/kerban75"
+
+  - trigger: ";swt"
+    replace: "😅"
+
+  - trigger: ";wav"
+    replace: "👋🏻"

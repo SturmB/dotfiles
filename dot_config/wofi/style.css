@@ -1,0 +1,44 @@
+window {
+    border-radius: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    background-color: rgba(30, 30, 46, 0.95);
+}
+
+#input {
+    margin: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #cdd6f4;
+    font-size: 14px;
+}
+
+#inner-box {
+    margin: 0 8px 8px 8px;
+}
+
+#outer-box {
+    margin: 0;
+    padding: 0;
+}
+
+#entry {
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: #cdd6f4;
+    font-size: 16px;
+}
+
+#entry:selected {
+    background-color: rgba(137, 180, 250, 0.2);
+    color: #ffffff;
+}
+
+#text {
+    color: #cdd6f4;
+}
+
+#text:selected {
+    color: #ffffff;
+}

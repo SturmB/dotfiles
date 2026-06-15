@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# chezmoi modify_ script for ~/.claude/settings.json
+#
+# Claude Code rewrites settings.json constantly (it appends every permission you
+# approve) and the live file holds machine-specific absolute paths in
+# permissions.additionalDirectories. So we DON'T own the whole file — instead we
+# merge a small set of stable, portable keys on top of whatever already exists,
+# preserving the local permissions list and additionalDirectories untouched.
+#
+# Scope is deliberately limited to hooks / plugins / marketplaces / spinner verbs.
+# permissions, permissions.defaultMode, autoMode, and the prompt-skip flags
+# (skipDangerousModePermissionPrompt / skipAutoPermissionPrompt) are intentionally
+# EXCLUDED so security-loosening settings are never silently propagated across
+# machines — they stay machine-local (deep-merge preserves them).
+#
+# chezmoi feeds the current target file on stdin; our stdout becomes the new file.
+set -euo pipefail
+
+current="$(cat)"
+[ -n "$current" ] || current='{}'
+
+stable='{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "rtk hook claude" } ] }
+    ]
+  },
+  "statusLine": { "type": "command", "command": "npx -y ccstatusline@latest" },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "laravel-boost@claude-plugins-official": false,
+    "claude-code-setup@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "karpathy-skills": { "source": { "source": "github", "repo": "forrestchang/andrej-karpathy-skills" } }
+  },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Consulting the Prophets",
+      "Scanning for changelings",
+      "Routing through the wormhole",
+      "Replicating raktajino",
+      "Hailing Starfleet Command",
+      "Recalibrating the deflector array",
+      "Negotiating with the Ferengi",
+      "Accessing Cardassian records",
+      "Running a level 3 diagnostic",
+      "Checking the holosuites",
+      "Contacting the Bajoran Militia",
+      "Analyzing the anomaly",
+      "Clearing the Promenade",
+      "Consulting Garak",
+      "Locking the airlock",
+      "Plotting a course to the Gamma Quadrant",
+      "Running security protocols",
+      "Decrypting Obsidian Order files",
+      "Aligning the docking pylons",
+      "Monitoring the quantum singularity",
+      "Activating the cloaking device",
+      "Preparing for red alert",
+      "Interfacing with the Dominion",
+      "Depolarizing the emitter array",
+      "Reviewing the Rules of Acquisition"
+    ]
+  }
+}'
+
+# Deep-merge: stable wins on conflicts, but keys only present locally (e.g.
+# permissions.*, autoMode, prompt-skip flags) are preserved untouched.
+jq -n --argjson cur "$current" --argjson stable "$stable" '$cur * $stable'

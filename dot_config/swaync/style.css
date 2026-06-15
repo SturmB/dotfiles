@@ -1,0 +1,190 @@
+/* swaync style — matches Hyprland theme colors */
+
+* {
+  all: unset;
+  font-size: 14px;
+  font-family: "Ubuntu Nerd Font", "Noto Sans", sans-serif;
+  transition: 200ms;
+}
+
+/* Notification popups */
+.notification-row {
+  outline: none;
+}
+
+.notification-row:focus,
+.notification-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.notification {
+  border-radius: 12px;
+  margin: 6px 12px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  padding: 0;
+  background: rgba(30, 30, 46, 0.95);
+}
+
+.notification-content {
+  padding: 10px;
+}
+
+.close-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cdd6f4;
+  text-shadow: none;
+  padding: 0;
+  border-radius: 100%;
+  margin-top: 10px;
+  margin-right: 10px;
+  box-shadow: none;
+  border: none;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.close-button:hover {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 200ms;
+  border: none;
+}
+
+.notification-default-action,
+.notification-action {
+  padding: 4px;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+  color: #cdd6f4;
+}
+
+.notification-default-action:hover,
+.notification-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.notification-action {
+  border-radius: 8px;
+  margin: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.summary {
+  font-size: 16px;
+  font-weight: bold;
+  color: #cdd6f4;
+}
+
+.time {
+  font-size: 12px;
+  color: #a6adc8;
+  margin-right: 24px;
+}
+
+.body {
+  font-size: 14px;
+  color: #bac2de;
+}
+
+.body-image {
+  margin-top: 6px;
+  border-radius: 8px;
+}
+
+.notification-group-icon {
+  color: #cdd6f4;
+}
+
+.notification-group-headers {
+  font-weight: bold;
+  color: #cdd6f4;
+}
+
+/* Critical notifications */
+.critical {
+  box-shadow: 0 0 0 2px rgba(243, 139, 168, 0.8);
+}
+
+/* Control center */
+.control-center {
+  background: rgba(30, 30, 46, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  margin: 8px;
+  padding: 8px;
+}
+
+.control-center-list {
+  background: transparent;
+}
+
+.control-center-list-placeholder {
+  opacity: 0.5;
+}
+
+/* Widgets */
+.widget-title {
+  margin: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #cdd6f4;
+}
+
+.widget-title > button {
+  font-size: 14px;
+  color: #cdd6f4;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+
+.widget-title > button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.widget-dnd {
+  margin: 8px;
+  font-size: 14px;
+  color: #cdd6f4;
+}
+
+.widget-dnd > switch {
+  font-size: 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.widget-dnd > switch:checked {
+  background: rgba(51, 204, 255, 0.4);
+}
+
+.widget-dnd > switch slider {
+  background: #cdd6f4;
+  border-radius: 100%;
+}
+
+.widget-inhibitors {
+  margin: 8px;
+  font-size: 14px;
+  color: #cdd6f4;
+}
+
+.widget-inhibitors > button {
+  font-size: 14px;
+  color: #cdd6f4;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+
+.widget-inhibitors > button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}

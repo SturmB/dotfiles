@@ -1,0 +1,8 @@
+width=400
+height=300
+location=center
+show=dmenu
+prompt=Emoji
+columns=1
+insensitive=true
+allow_images=false

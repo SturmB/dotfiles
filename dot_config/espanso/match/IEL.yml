@@ -1,0 +1,30 @@
+matches:
+  - trigger: ";emi"
+    replace: "cpmcgee@intxlog.com"
+
+  - trigger: ";sig"
+    replace: |
+      <p>
+      <strong>Chris McGee</strong>
+      Web Developer / DevOps
+      <a href="mailto:chris@chrismcgee.info">chris@chrismcgee.info</a>
+      </p>
+
+  - trigger: ";su"
+    replace: |
+      <p><strong>Today ()</strong><p>
+      <ul>
+        <li>$|$</li>
+      </ul>
+      <p><strong>Next Day ()</strong></p>
+      <ul>
+        <li></li>
+      </ul>
+      <p><strong>On Deck: </strong></p>
+      <p><strong>Blockers: </strong>🚫</p>
+
+  - trigger: ";mrg"
+    replace: "🔀 "
+
+  - trigger: ";w2w"
+    replace: "🧱2️⃣🧱"

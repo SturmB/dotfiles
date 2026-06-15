@@ -1,0 +1,56 @@
+SUPER + K | Show keybindings
+SUPER + Space | App launcher
+SUPER + Escape | System menu (wlogout)
+SUPER + Ctrl + L | Lock screen
+SUPER + W | Close window
+Ctrl + Alt + Delete | Close all windows
+SUPER + T | Toggle floating/tiling
+SUPER + O | Toggle sticky floating (pin)
+SUPER + F | Fullscreen
+SUPER + Alt + F | Full width (maximize)
+SUPER + Arrows | Move focus
+SUPER + Shift + Arrows | Swap windows
+SUPER + = / - | Resize window (horizontal)
+SUPER + Shift + = / - | Resize window (vertical)
+SUPER + 1-9, 0 | Switch workspace (1-5 MSI, 6-10 Dell)
+SUPER + Shift + 1-9, 0 | Move window to workspace
+SUPER + Tab | Next workspace
+SUPER + Shift + Tab | Previous workspace
+SUPER + Ctrl + Tab | Last workspace
+SUPER + Shift + Alt + Arrows | Move workspace to other monitor
+SUPER + G | Toggle window grouping
+SUPER + Alt + G | Remove window from group
+SUPER + Alt + Tab | Cycle windows in group
+SUPER + Alt + 1-4 | Jump to window in group
+SUPER + Alt + Arrows | Move window into group
+SUPER + S | Scratchpad (toggle)
+SUPER + Alt + S | Move window to scratchpad
+SUPER + Ctrl + Z | Zoom in
+SUPER + Ctrl + Alt + Z | Zoom out
+SUPER + / | Cycle monitor scaling
+SUPER + Return | Terminal (Ghostty)
+SUPER + Shift + Return | Browser (Zen)
+SUPER + Shift + F | File manager (Dolphin)
+SUPER + Shift + O | Obsidian
+SUPER + Shift + D | LazyDocker
+SUPER + Ctrl + A | Audio controls (pavucontrol)
+SUPER + Ctrl + B | Bluetooth (bluetui)
+SUPER + Ctrl + W | Wifi (nmtui)
+SUPER + Ctrl + T | System monitor (btop)
+SUPER + Ctrl + V | Clipboard history
+SUPER + . | Emoji picker
+Print | Screenshot (region)
+Alt + Print | Screen record
+SUPER + Print | Color picker
+SUPER + , | Dismiss notification
+SUPER + Shift + , | Dismiss all notifications
+SUPER + Ctrl + , | Toggle do-not-disturb
+SUPER + Alt + , | Toggle notification panel
+SUPER + Backspace | Toggle window transparency
+SUPER + Shift + Space | Toggle waybar
+SUPER + Shift + T | Restart tray apps (after waybar restart/crash)
+SUPER + Ctrl + N | Toggle nightlight
+SUPER + Ctrl + I | Toggle idle prevention
+Mouse: SUPER + LMB drag | Move floating window
+Mouse: SUPER + RMB drag | Resize floating window
+Mouse: SUPER + scroll | Scroll through workspaces
