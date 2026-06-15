@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+{{ if not .server -}}
+# ===== rtk (Rust Token Killer) — backs the `rtk hook claude` in settings.json ===
+# Installed before files apply so the synced PreToolUse hook always has its binary.
+if ! command -v rtk >/dev/null 2>&1; then
+  echo "[install] rtk (rtk-ai/rtk)"
+  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh \
+    || echo "  (rtk install failed — install manually; see ~/.claude/RTK.md)"
+fi
+{{ end }}
 {{ if eq .chezmoi.osRelease.id "cachyos" -}}
 # ===== CachyOS: system already provides OMZ/plugins/tools ===================
 echo "[install] CachyOS — ensuring starship is present"
