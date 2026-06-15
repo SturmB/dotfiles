@@ -7,11 +7,13 @@ echo "[install] CachyOS — ensuring starship is present"
 command -v starship >/dev/null || sudo pacman -S --needed --noconfirm starship
 
 {{ if .work }}echo "[install] jira-cli + confcli (work tooling)"
-aur_helper="$(command -v paru || command -v yay || true)"
-if [ -n "$aur_helper" ]; then
-  "$aur_helper" -S --needed --noconfirm jira-cli-bin
-else
-  echo "  (no AUR helper found — install jira-cli-bin manually)"
+if ! command -v jira >/dev/null; then
+  aur_helper="$(command -v paru || command -v yay || true)"
+  if [ -n "$aur_helper" ]; then
+    "$aur_helper" -S --needed --noconfirm jira-cli-bin
+  else
+    echo "  (no AUR helper found — install jira-cli-bin manually)"
+  fi
 fi
 CONFCLI_VERSION=0.2.6
 mkdir -p "$HOME/.local/bin"
