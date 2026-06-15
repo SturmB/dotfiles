@@ -1,10 +1,23 @@
 [tools]
-php = { version = "8.5", postinstall = "~/.config/php/install-extensions.sh" }
-
+{{ if ne .chezmoi.osRelease.id "ubuntu" -}}
+# On non-Ubuntu machines, mise compiles php from source. On Ubuntu, php is provided
+# by the distro (apt php8.5-*, installed by run_onchange_after_install-php-apt.sh.tmpl)
+# because 26.04 ships php8.5 natively and source builds need a heavy build-dep set.
+#
+# Pinned to an exact stable patch: fuzzy "8.5" resolves to a release candidate
+# (8.5.7RC2) because the asdf-php plugin formats RCs without a hyphen, so mise's
+# prerelease filter can't exclude them. Bump this when a newer stable 8.5.x ships.
+php = { version = "8.5.7", postinstall = "~/.config/php/install-extensions.sh" }
+{{ end -}}
+node = "24.16.0"
+{{ if ne .chezmoi.osRelease.id "ubuntu" }}
 [env]
 # Appends to default configure options via the plugin's override mechanism.
 # Defaults (Linux): --with-openssl --with-curl --with-zlib --with-readline --with-gettext + jpeg/png
 # The plugin replaces defaults when this is set, so we must include everything.
-PHP_CONFIGURE_OPTIONS = "--with-openssl --with-curl --with-zlib --with-readline --with-gettext --with-jpeg --with-png --with-pgsql --with-imap --with-imap-ssl --with-kerberos --with-ldap --with-sodium"
+# NOTE: --with-imap / --with-imap-ssl were dropped — imap left PHP core in 8.4, so
+# those flags fail any 8.5 source build (and libc-client is gone from recent distros).
+PHP_CONFIGURE_OPTIONS = "--with-openssl --with-curl --with-zlib --with-readline --with-gettext --with-jpeg --with-png --with-pgsql --with-kerberos --with-ldap --with-sodium"
 # Prepend shared config dir; leading colon means "compiled-in dir + this dir"
 PHP_INI_SCAN_DIR = ":{{ .chezmoi.homeDir }}/.config/php/conf.d"
+{{ end -}}

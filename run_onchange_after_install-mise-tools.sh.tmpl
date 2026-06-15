@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# NOTE: deliberately no `-e` — one tool that can't build must NOT abort `chezmoi apply`.
+set -uo pipefail
+
+# Install the runtimes declared in ~/.config/mise/config.toml whenever that file
+# changes. chezmoi re-runs this script only when the hash below changes, and the
+# `after` ordering guarantees the config has already been written to disk.
+#
+# Why this exists: chezmoi manages the mise *config*, but a declared tool is not an
+# installed tool until `mise install` runs. Without this, applying a new pin (e.g.
+# `node = "24.16.0"`) leaves the mise shims on PATH failing with
+# "No version is set for shim", which silently breaks every npx-launched tool —
+# Claude Code MCP servers (playwright, context7), the ccstatusline statusline, etc.
+#
+# mise config hash: {{ include "dot_config/mise/config.toml.tmpl" | sha256sum }}
+
+if ! command -v mise >/dev/null 2>&1; then
+  echo "[mise] binary not found — skipping tool install (run_once bootstrap installs it on work/apt machines)"
+  exit 0
+fi
+
+# node backs every npx-launched tool, so guarantee it first and loudly.
+if ! mise install node; then
+  echo "[mise] WARNING: 'node' failed to install — npx-based tools (Claude MCP servers, ccstatusline) will break" >&2
+fi
+
+# Best-effort install of everything else declared. A source-built tool that lacks
+# build deps (e.g. php needing autoconf) warns but must not fail the apply.
+if ! mise install; then
+  echo "[mise] WARNING: one or more declared tools failed to install (check build deps, e.g. autoconf for source-built php) — apply continues" >&2
+fi
+
+exit 0
