@@ -27,8 +27,8 @@ export JIRA_AUTH_TYPE=basic
 {{- end }}
 
 # Node / tool version managers
-{{ if eq .profile "work" -}}
-# Work laptop: mise only (covers Node + PHP); nvm dropped
+{{ if or (eq .profile "work") (eq .profile "stream") -}}
+# Work laptop / stream PC: mise only (covers Node + PHP); nvm dropped
 export PATH="$HOME/.local/share/mise/shims:$PATH"
 command -v mise >/dev/null && eval "$(mise activate zsh)"
 {{- else if eq .profile "personal" -}}
@@ -49,14 +49,13 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
 # fzf
 export FZF_BASE="/usr/share/fzf"
 
-# Secrets (age-decrypted on apply into ~/.secrets, mode 600)
-[[ -f "${HOME}/.secrets" ]] && source "${HOME}/.secrets"
+# Secrets: sourced from ~/.zshenv now, so they reach non-interactive shells too.
 
 # Completions
 autoload -Uz compinit && compinit
 
 # Prompt
-eval "$(starship init zsh)"
+command -v starship >/dev/null && eval "$(starship init zsh)"
 
 # Syntax highlighting MUST be sourced last among ZLE-wrapping plugins
 {{ if eq .chezmoi.osRelease.id "cachyos" -}}
@@ -71,4 +70,4 @@ source "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highl
 # chpwd hook only, it does not wrap ZLE widgets.
 # (zoxide's doctor self-check is silenced via _ZO_DOCTOR=0 in ~/.zshenv, which
 # also covers non-interactive snapshot shells that never source this file.)
-eval "$(zoxide init --cmd cd zsh)"
+command -v zoxide >/dev/null && eval "$(zoxide init --cmd cd zsh)"

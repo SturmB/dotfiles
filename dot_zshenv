@@ -11,3 +11,9 @@
 # .zshenv guarantees the var is present before any such shell runs. The actual
 # hook ordering in ~/.zshrc is already correct; this only mutes the diagnostic.
 export _ZO_DOCTOR=0
+
+# Secrets (age-decrypted on apply into ~/.secrets, mode 600). Sourced here
+# rather than ~/.zshrc so non-interactive zsh invocations — e.g. Claude Code's
+# Bash tool in VS Code, which never loads ~/.zshrc — still get JIRA_API_TOKEN
+# and friends without an agent having to source the file itself.
+[[ -f "${HOME}/.secrets" ]] && source "${HOME}/.secrets"

@@ -69,7 +69,7 @@ if command -v apt >/dev/null 2>&1; then
   [ -e "$HOME/.local/bin/fd" ]  || ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"  2>/dev/null || true
   [ -e "$HOME/.local/bin/bat" ] || ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat" 2>/dev/null || true
 
-{{ if eq .profile "work" }}  echo "[install] mise (work profile)"
+{{ if or (eq .profile "work") (eq .profile "stream") }}  echo "[install] mise (node runtime — work/stream)"
   command -v mise >/dev/null || curl -fsSL https://mise.run | sh
 {{ end }}
 {{ if .work }}  echo "[install] jira-cli + confcli (work tooling)"

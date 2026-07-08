@@ -1,5 +1,5 @@
-{{- $profile := promptChoiceOnce . "profile" "Machine profile" (list "personal" "work" "server") -}}
-{{- $personal := eq $profile "personal" -}}
+{{- $profile := promptChoiceOnce . "profile" "Machine profile" (list "personal" "work" "server" "stream") -}}
+{{- $personal := or (eq $profile "personal") (eq $profile "stream") -}}
 {{- $work := or (eq $profile "personal") (eq $profile "work") -}}
 {{- $server := eq $profile "server" -}}
 
