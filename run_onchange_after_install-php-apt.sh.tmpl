@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-{{ if eq .chezmoi.osRelease.id "ubuntu" -}}
+{{ if and (eq .chezmoi.osRelease.id "ubuntu") (eq .profile "work") -}}
 
 # Host PHP on Ubuntu comes from the distro's native php8.5 packages (26.04 ships
 # 8.5.x, security-maintained). The Nexus app itself runs in Sail/Docker; this is the
