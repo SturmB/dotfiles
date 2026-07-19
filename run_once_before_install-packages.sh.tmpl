@@ -59,12 +59,10 @@ if command -v apt >/dev/null 2>&1; then
   command -v starship >/dev/null || sh -c "$(curl -fsSL https://starship.rs/install.sh)" -- --yes
 
   echo "[install] CLI tools (apt names: fd-find->fdfind, bat->batcat)"
-  sudo apt install -y fzf ripgrep fd-find bat zoxide
-  if ! command -v lsd >/dev/null || ! command -v eza >/dev/null; then
-    command -v cargo >/dev/null || sudo apt install -y cargo
-    command -v lsd  >/dev/null || cargo install lsd
-    command -v eza  >/dev/null || cargo install eza
-  fi
+  # eza + lsd are in apt on Ubuntu >=24.04 (noble). Was cargo install, but 24.04's
+  # rustc (1.75) is too old for current eza (needs 1.82) and the build aborted the
+  # whole bootstrap — apt packages are plenty for a shell prompt.
+  sudo apt install -y fzf ripgrep fd-find bat zoxide eza lsd
   mkdir -p "$HOME/.local/bin"
   [ -e "$HOME/.local/bin/fd" ]  || ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"  2>/dev/null || true
   [ -e "$HOME/.local/bin/bat" ] || ln -sf "$(command -v batcat)" "$HOME/.local/bin/bat" 2>/dev/null || true
