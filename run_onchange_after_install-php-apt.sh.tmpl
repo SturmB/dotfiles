@@ -1,21 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
-{{ if and (eq .chezmoi.osRelease.id "ubuntu") (eq .profile "work") -}}
+{{ $wantphp := or (eq .profile "work") .server -}}
+{{ if and (eq .chezmoi.osRelease.id "ubuntu") $wantphp -}}
+{{ $php := "8.5" -}}
 
-# Host PHP on Ubuntu comes from the distro's native php8.5 packages (26.04 ships
-# 8.5.x, security-maintained). The Nexus app itself runs in Sail/Docker; this is the
-# host CLI php for tooling. php is intentionally NOT a mise tool on Ubuntu (see
-# mise/config.toml.tmpl). Re-runs when this script changes (chezmoi hashes it);
-# each step is guarded so re-runs on an already-provisioned host are no-ops.
+# Host CLI PHP on Ubuntu. php{{ $php }} everywhere (matches solamnia-portal's
+# serversideup/php:{{ $php }} container, and is the current release).
+#   work   = full Nexus dev stack (26.04 ships php{{ $php }} natively; app runs in
+#            Sail/Docker, this is the host CLI php for tooling).
+#   server = lean runtime for solamnia-portal `artisan` maintenance (the app itself
+#            runs containerised; 24.04 needs the ondrej PPA — see below).
+# php is intentionally NOT a mise tool on Ubuntu (see mise/config.toml.tmpl). Re-runs
+# when this script changes (chezmoi hashes it); every step is guarded so re-runs on an
+# already-provisioned host are no-ops.
+
+{{ if eq .chezmoi.osRelease.versionID "24.04" -}}
+# 24.04's default repos carry no modern PHP → add ondrej/php once (26.04 ships
+# php{{ $php }} natively, so this step is 24.04-only).
+if ! ls /etc/apt/sources.list.d/ondrej-*php* >/dev/null 2>&1; then
+  echo "[php] adding ondrej/php PPA (php{{ $php }} not in 24.04 default repos)"
+  command -v add-apt-repository >/dev/null 2>&1 || sudo apt install -y software-properties-common
+  sudo add-apt-repository -y ppa:ondrej/php
+fi
+{{ end -}}
 
 # --- Packaged extensions (apt) -------------------------------------------------
 PKGS=(
-  php8.5-cli
-  php8.5-curl php8.5-mbstring php8.5-xml php8.5-zip php8.5-gd
-  php8.5-intl php8.5-bcmath php8.5-gmp php8.5-sqlite3 php8.5-soap
-  php8.5-pgsql php8.5-ldap
-  php8.5-igbinary php8.5-imagick php8.5-memcached php8.5-msgpack
-  php8.5-pcov php8.5-redis php8.5-xdebug
+{{ if .work -}}
+  php{{ $php }}-cli
+  php{{ $php }}-curl php{{ $php }}-mbstring php{{ $php }}-xml php{{ $php }}-zip php{{ $php }}-gd
+  php{{ $php }}-intl php{{ $php }}-bcmath php{{ $php }}-gmp php{{ $php }}-sqlite3 php{{ $php }}-soap
+  php{{ $php }}-pgsql php{{ $php }}-ldap
+  php{{ $php }}-igbinary php{{ $php }}-imagick php{{ $php }}-memcached php{{ $php }}-msgpack
+  php{{ $php }}-pcov php{{ $php }}-redis php{{ $php }}-xdebug
+{{ else -}}
+  php{{ $php }}-cli
+  php{{ $php }}-curl php{{ $php }}-mbstring php{{ $php }}-xml php{{ $php }}-zip php{{ $php }}-gd
+  php{{ $php }}-intl php{{ $php }}-bcmath php{{ $php }}-gmp php{{ $php }}-sqlite3 php{{ $php }}-mysql
+{{ end -}}
 )
 
 missing=()
@@ -30,8 +52,8 @@ else
   sudo apt update
   sudo apt install -y "${missing[@]}"
 fi
-
-# --- pecl-only extensions (opentelemetry, swoole) ------------------------------
+{{ if .work }}
+# --- pecl-only extensions (opentelemetry, swoole) — work dev stack only ---------
 # Not packaged for Ubuntu, so they're compiled with pecl. (install-php-extensions
 # refuses to run outside official Docker PHP images, so it can't be used on a host.)
 PECL_EXTS=(opentelemetry swoole)
@@ -83,4 +105,5 @@ else
     fi
   done
 fi
+{{ end -}}
 {{ end -}}
