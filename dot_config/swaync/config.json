@@ -30,6 +30,15 @@
   "hide-on-action": true,
   "script-fail-notify": true,
   "notification-visibility": {
+    "hermes-action-required": {
+      "state": "enabled",
+      "app-name": "^Hermes$",
+      "summary": "^(Approval needed|Input needed|Turn failed|Background task failed)$"
+    },
+    "hermes-routine": {
+      "state": "ignored",
+      "app-name": "^Hermes$"
+    },
     "claude-code-permission": {
       "state": "ignored",
       "body": "(needs your attention|needs your permission|waiting for your input)",
