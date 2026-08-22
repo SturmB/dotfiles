@@ -39,6 +39,11 @@
       "state": "ignored",
       "app-name": "^Hermes$"
     },
+    "dropbox-stylus-lock": {
+      "state": "ignored",
+      "app-name": "^Dropbox$",
+      "body": "^You deleted lock\\.json$"
+    },
     "claude-code-permission": {
       "state": "ignored",
       "body": "(needs your attention|needs your permission|waiting for your input)",
