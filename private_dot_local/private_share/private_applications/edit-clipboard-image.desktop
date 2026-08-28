@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Edit Clipboard Image
+GenericName=Clipboard Image Editor
+Comment=Annotate the image currently on the clipboard with Satty
+Exec=/home/kerban/.local/bin/edit-clipboard-image
+Icon=satty
+Terminal=false
+Categories=Graphics;
+Keywords=clipboard;image;screenshot;annotation;edit;satty;
+StartupNotify=true
+StartupWMClass=com.gabm.satty

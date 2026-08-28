@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -o pipefail
+
+types=$(/usr/bin/wl-paste --list-types 2>/dev/null) || types=""
+mime=$(
+    while IFS= read -r offered; do
+        case "$offered" in
+            image/*)
+                printf '%s\n' "$offered"
+                break
+                ;;
+        esac
+    done <<< "$types"
+)
+
+if [[ -z "$mime" ]]; then
+    /usr/bin/notify-send \
+        --app-name="Edit Clipboard Image" \
+        --icon=satty \
+        "No image on the clipboard" \
+        "Copy an image, then launch Edit Clipboard Image again."
+    exit 1
+fi
+
+/usr/bin/wl-paste --type "$mime" | /usr/bin/satty \
+    --filename - \
+    --copy-command /usr/bin/wl-copy \
+    --early-exit \
+    --disable-notifications \
+    --title "Edit Clipboard Image"
