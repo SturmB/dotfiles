@@ -69,14 +69,35 @@ nexus-lerd() {
 {{ if .personal }}
 # ── Personal: StreamController recovery ──────────────────────────
 fix-streamcontroller() {
-    echo "Killing StreamController processes..."
-    pkill -f StreamController 2>/dev/null
-    sleep 1
-    echo "Resetting Stream Deck XL USB device..."
-    sudo usbreset 0fd9:006c
-    echo "Relaunching StreamController..."
-    flatpak run com.core447.StreamController &>/dev/null &
-    disown
-    echo "Done."
+    local app=com.core447.StreamController
+
+    # The manual fallback lives in streamcontroller-repair.sh. Normal login now
+    # uses the graphical-session lifecycle and does not reset the deck. Delegating
+    # keeps one exceptional-recovery implementation: USB reset, empty-Main.json
+    # restore, and the stop/kill/start dance. This wrapper adds verification.
+    #
+    # It also restarts flatpak-session-helper. That helper caches the environment
+    # it started with, so a stale instance would make `flatpak-spawn --host
+    # hyprctl ...` target a dead compositor socket.
+    #
+    # No `sudo` on usbreset: the Elgato udev rule makes /dev/bus/usb/* writable by
+    # us, so recovery does not need to block on a password prompt.
+    ~/.config/hypr/scripts/streamcontroller-repair.sh || return 1
+
+    # Verify, don't assume. Two instances = "No Decks Available" (the loser can't
+    # claim the deck's usbfs handle); zero decks loaded = it never grabbed the USB.
+    sleep 10
+    local n=$(flatpak ps | grep -c "$app")
+    [ "$n" -eq 1 ] && echo "OK: 1 instance" || echo "FAIL: $n instances running (expected 1)"
+    if tail -40 "$HOME/.var/app/$app/data/logs/logs.log" | grep -q "Loaded page .* on deck"; then
+        echo "OK: deck detected"
+    else
+        echo "FAIL: no deck loaded -- check $HOME/.var/app/$app/data/logs/logs.log"
+    fi
+    local sig
+    sig=$(tr '\0' '\n' < "/proc/$(systemctl --user show -p MainPID --value flatpak-session-helper.service)/environ" 2>/dev/null \
+          | sed -n 's/^HYPRLAND_INSTANCE_SIGNATURE=//p')
+    [ "$sig" = "$HYPRLAND_INSTANCE_SIGNATURE" ] && echo "OK: flatpak helper has the live instance signature" \
+        || echo "FAIL: flatpak helper signature is stale -- hyprctl from flatpaks will fail"
 }
 {{ end }}
