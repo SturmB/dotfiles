@@ -42,6 +42,14 @@ with tempfile.TemporaryDirectory() as tmp:
         if profile == 'server':
             assert '.profile' in managed and '.bashrc' in managed
             assert '.ssh/id_ed25519_iel' not in managed
+        zprofile = render('dot_zprofile.tmpl')
+        assert ('xdg-ubuntustudio-dirs.sh' in zprofile) == (distro == 'ubuntu')
+        subprocess.run(['zsh', '-n'], input=zprofile, text=True, check=True)
+        # Exercise the distro hook when available, with a clean login environment.
+        if distro == 'ubuntu' and pathlib.Path('/etc/profile.d/xdg-ubuntustudio-dirs.sh').exists():
+            (dest / '.zprofile').write_text(zprofile)
+            probe = subprocess.run(['zsh', '-lc', 'print -r -- "$XDG_CONFIG_DIRS"'], env={'HOME': str(dest), 'ZDOTDIR': str(dest), 'PATH': '/usr/bin:/bin', 'DESKTOP_SESSION': 'plasma'}, text=True, capture_output=True, check=True)
+            assert '/etc/xdg/xdg-plasma' in probe.stdout.split(':')
         rendered = render('private_dot_secrets.tmpl')
         names = set(re.findall(r'^export (\w+)=', rendered, re.M))
         expected = {'stream': {'OPENROUTER_API_KEY'}, 'work': {'JIRA_API_TOKEN', 'COMPOSER_AUTH'}, 'personal': {'JIRA_API_TOKEN', 'COMPOSER_AUTH', 'YNAB_API_KEY', 'OPENROUTER_API_KEY'}, 'server': set()}[profile]
