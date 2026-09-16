@@ -65,6 +65,7 @@ if [[ -r /usr/share/zsh/functions/Completion/Debian/_apt ]]; then
     local cur=${words[CURRENT]}
     if [[ $cur == '~/'* ]]; then
       _files
+      return 0
     else
       _apt_system "$@"
     fi
