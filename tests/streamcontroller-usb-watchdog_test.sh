@@ -49,6 +49,14 @@ assert_calls() {
 handle_usb_event add usb_device 0fd9 006c CL46I1A01110
 assert_calls $'sleep 3\nsystemctl --user start streamcontroller.service'
 
+# StreamController itself logs the complete matching USB identity before its GTK4
+# hotplug crash; that line must trigger the same guarded recovery.
+: >"$calls"
+failed=1
+flatpak_instance=0
+handle_streamcontroller_log_line "2026-09-16 16:22:13.999 | INFO | Device connected {'ID_MODEL_ID': '006c', 'ID_VENDOR_ID': '0fd9', 'ID_SERIAL': 'Elgato_Stream_Deck_XL_CL46I1A01110'}"
+assert_calls $'sleep 3\nsystemctl --user start streamcontroller.service'
+
 # Other USB devices must never trigger a StreamController launch.
 : >"$calls"
 handle_usb_event add usb_device 046d 0893 9D9F86E5

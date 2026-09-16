@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Recover StreamController only after the exact Stream Deck XL reappears on USB.
+# Recover StreamController only after its exact Stream Deck XL hot-plug log entry.
 # The Dell U2723QE KVM re-enumerates the deck on a Titan return, which can crash
-# StreamController's GTK4 page reload. The service itself remains the sole app
-# launcher; this watcher starts it only after that crash has left it failed.
+# StreamController's GTK4 page reload. The application emits the full USB device
+# identity immediately before that crash; tailing that log is more reliable than
+# a user-session udev stream. The service remains the sole app launcher.
 
 set -u -o pipefail
 
@@ -11,6 +12,7 @@ readonly streamcontroller_unit=streamcontroller.service
 readonly streamdeck_vendor=0fd9
 readonly streamdeck_product=006c
 readonly streamdeck_serial=CL46I1A01110
+readonly streamcontroller_log="${SC_WATCHDOG_LOG_FILE:-$HOME/.var/app/${streamcontroller_app}/data/logs/logs.log}"
 readonly reconnect_delay_seconds=3
 readonly lock_file="${SC_WATCHDOG_LOCK_FILE:-${XDG_RUNTIME_DIR:-/tmp}/streamcontroller-usb-watchdog.lock}"
 
@@ -59,33 +61,25 @@ handle_usb_event() {
     recover_if_failed
 }
 
+handle_streamcontroller_log_line() {
+    local line=$1
+
+    [[ "$line" == *"Device "* && "$line" == *" connected"* && \
+       "$line" == *"'ID_MODEL_ID': '006c'"* && \
+       "$line" == *"'ID_VENDOR_ID': '0fd9'"* && \
+       "$line" == *"'ID_SERIAL': 'Elgato_Stream_Deck_XL_${streamdeck_serial}'"* ]] || return 0
+
+    recover_if_failed
+}
+
 main() {
-    local action='' devtype='' vendor='' product='' serial='' line=''
+    local line=''
 
-    coproc UDEV_MONITOR { stdbuf -oL udevadm monitor --udev --property --subsystem-match=usb; }
-
-    while systemctl --user is-active --quiet graphical-session.target; do
-        if ! IFS= read -r -t 1 line <&"${UDEV_MONITOR[0]}"; then
-            continue
-        fi
-
-        if [[ -z "$line" ]]; then
-            handle_usb_event "$action" "$devtype" "$vendor" "$product" "$serial"
-            action=''; devtype=''; vendor=''; product=''; serial=''
-            continue
-        fi
-
-        case "$line" in
-            ACTION=*)          action=${line#ACTION=} ;;
-            DEVTYPE=*)         devtype=${line#DEVTYPE=} ;;
-            ID_VENDOR_ID=*)    vendor=${line#ID_VENDOR_ID=} ;;
-            ID_MODEL_ID=*)     product=${line#ID_MODEL_ID=} ;;
-            ID_SERIAL_SHORT=*) serial=${line#ID_SERIAL_SHORT=} ;;
-        esac
+    # Start at EOF so a historical hot-plug cannot revive an old failed unit.
+    tail -n0 -F "$streamcontroller_log" 2>/dev/null | while IFS= read -r line; do
+        systemctl --user is-active --quiet graphical-session.target || break
+        handle_streamcontroller_log_line "$line"
     done
-
-    kill "$UDEV_MONITOR_PID" 2>/dev/null || true
-    wait "$UDEV_MONITOR_PID" 2>/dev/null || true
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
