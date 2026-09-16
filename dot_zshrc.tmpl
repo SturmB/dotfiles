@@ -59,7 +59,14 @@ autoload -Uz compinit && compinit
 # rings instead of completing local .deb paths. Preserve normal APT completion
 # and hand literal home-relative paths to the standard file completer.
 if [[ -r /usr/share/zsh/functions/Completion/Debian/_apt ]]; then
-  source /usr/share/zsh/functions/Completion/Debian/_apt
+  # The package file self-invokes `_apt` on its final line; evaluate its
+  # definitions only, so shell startup does not run a completion function.
+  typeset -a _apt_source_lines
+  _apt_source_lines=("${(@f)$(</usr/share/zsh/functions/Completion/Debian/_apt)}")
+  unset '_apt_source_lines[-1]'
+  eval "${(j:
+:)_apt_source_lines}"
+  unset _apt_source_lines
   functions[_apt_system]=$functions[_apt]
   _apt() {
     local cur=${words[CURRENT]}
