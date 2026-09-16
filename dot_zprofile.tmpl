@@ -1,0 +1,11 @@
+{{ if eq .chezmoi.osRelease.id "ubuntu" -}}
+# Ubuntu Studio supplies desktop defaults through a POSIX profile.d hook.
+# SDDM launches the desktop through the login shell, and zsh does not read
+# /etc/profile. Load only this distro-owned hook, not arbitrary Bash startup.
+if [[ -r /etc/profile.d/xdg-ubuntustudio-dirs.sh ]]; then
+  () {
+    emulate -L sh
+    . /etc/profile.d/xdg-ubuntustudio-dirs.sh
+  }
+fi
+{{ end -}}
