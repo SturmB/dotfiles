@@ -88,6 +88,9 @@ hl.on("hyprland.start", function()
     -- Espanso is owned by Hyprland so it exits with this graphical session. Do not
     -- enable its lingering default.target user unit or add an XDG-autostart duplicate.
     hl.exec_cmd("espanso launcher")
+    -- The Comet Pro KVM disconnects EVDEV devices on a Titan → Aurora → Titan
+    -- switch. Watch Espanso's log and replace its stale worker after reconnect.
+    hl.exec_cmd("~/.config/hypr/scripts/espanso-hotplug-watchdog.sh")
     -- Toolbox registers its tray item only at process startup; wait until Waybar
     -- owns the watcher. Keep the mixed-monitor XWayland scale override local to
     -- Toolbox so IDEs launched from it do not inherit a global JVM option.
