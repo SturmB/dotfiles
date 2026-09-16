@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # NOTE: deliberately no `-e` — one tool that can't build must NOT abort `chezmoi apply`.
 set -uo pipefail
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 # Install the runtimes declared in ~/.config/mise/config.toml whenever that file
 # changes. chezmoi re-runs this script only when the hash below changes, and the

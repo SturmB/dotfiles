@@ -14,3 +14,6 @@ encryption = "age"
     personal = {{ $personal }}
     work     = {{ $work }}
     server   = {{ $server }}
+    # Explicit desktop capabilities; old configs use equivalent ignore-file defaults.
+    hyprland = {{ if hasKey . "hyprland" }}{{ .hyprland }}{{ else }}{{ and (eq $profile "personal") (eq .chezmoi.osRelease.id "cachyos") }}{{ end }}
+    clipboardImage = {{ if hasKey . "clipboardImage" }}{{ .clipboardImage }}{{ else }}{{ and (eq $profile "personal") (eq .chezmoi.osRelease.id "cachyos") }}{{ end }}

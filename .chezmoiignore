@@ -3,3 +3,42 @@
 .ssh/id_ed25519_iel.pub
 {{ end }}
 windows-terminal
+README.md
+tests
+
+{{ if eq .profile "stream" }}
+# Preserve Ubuntu login/PATH and Bash fallback configuration.
+.profile
+.bashrc
+{{ end }}
+{{ if not .work }}
+.gitconfig-work
+.config/atlassian
+.config/espanso/match/IEL.yml
+.config/php
+.claude/skills/lerd
+.claude/commands/code-review.md
+.claude/commands/guideline-triage.md
+.claude/commands/prs-to-review.md
+.claude/commands/review-multi-prs.md
+{{ end }}
+{{ if not (and (eq .chezmoi.osRelease.id "ubuntu") (eq .profile "work")) }}
+install-php-apt.sh
+{{ end }}
+{{ $hyprland := and (eq .profile "personal") (eq .chezmoi.osRelease.id "cachyos") }}
+{{ if hasKey . "hyprland" }}{{ $hyprland = .hyprland }}{{ end }}
+{{ if not $hyprland }}
+.config/hypr
+.config/waybar
+.config/wofi
+.config/swaync
+.config/wlogout
+.config/azote
+.local/bin/hyprlock-logged
+{{ end }}
+{{ $clipboard := $hyprland }}
+{{ if hasKey . "clipboardImage" }}{{ $clipboard = .clipboardImage }}{{ end }}
+{{ if not $clipboard }}
+.local/bin/edit-clipboard-image
+.local/share/applications/edit-clipboard-image.desktop
+{{ end }}
