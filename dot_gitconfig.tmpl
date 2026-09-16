@@ -23,7 +23,7 @@
     helper =
     helper = !/usr/bin/gh auth git-credential
 
-{{ if .personal }}
+{{ if and .personal .work }}
 # Work repos under ~/dev/intxlog use the work identity
 [includeIf "gitdir:~/dev/intxlog/"]
     path = ~/.gitconfig-work

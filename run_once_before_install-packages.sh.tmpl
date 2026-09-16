@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 {{ if not .server -}}
 # ===== rtk (Rust Token Killer) — backs the `rtk hook claude` in settings.json ===
 # Installed before files apply so the synced PreToolUse hook always has its binary.
 if ! command -v rtk >/dev/null 2>&1; then
   echo "[install] rtk (rtk-ai/rtk)"
-  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh \
-    || echo "  (rtk install failed — install manually; see ~/.claude/RTK.md)"
+  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh
 fi
+command -v rtk >/dev/null || { echo "RTK unavailable; refusing to install a broken Claude hook" >&2; exit 1; }
 {{ end }}
 {{ if eq .chezmoi.osRelease.id "cachyos" -}}
 # ===== CachyOS: system already provides OMZ/plugins/tools ===================
 echo "[install] CachyOS — ensuring starship is present"
-command -v starship >/dev/null || sudo pacman -S --needed --noconfirm starship
+sudo pacman -S --needed --noconfirm starship jq github-cli
 
 {{ if .work }}echo "[install] jira-cli + confcli (work tooling)"
 if ! command -v jira >/dev/null; then
@@ -36,7 +37,7 @@ if command -v apt >/dev/null 2>&1; then
   # ---- Ubuntu / WSL / Ubuntu-server -----------------------------------------
   echo "[install] apt base packages"
   sudo apt update
-  sudo apt install -y zsh git curl build-essential unzip
+  sudo apt install -y zsh git curl build-essential unzip jq gh
 
   echo "[install] Oh My Zsh"
   if [ ! -d "$HOME/.oh-my-zsh" ]; then
