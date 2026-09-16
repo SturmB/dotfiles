@@ -52,6 +52,9 @@ hl.on("hyprland.start", function()
     -- start with the previous Hyprland instance signature. hyprland-session.target pulls
     -- graphical-session.target up; the shutdown hook below releases it again on logout.
     hl.exec_cmd("~/.config/hypr/scripts/session-start.sh")
+    -- Watch the Dell U2723QE KVM's Stream Deck XL USB reconnect. The watchdog
+    -- starts the sole StreamController service only if hotplug left it failed.
+    hl.exec_cmd("~/.config/hypr/scripts/streamcontroller-usb-watchdog.sh")
 
     -- waybar wrapped in a respawn loop — it periodically SIGSEGVs in libgdk-3
     -- (GTK3/Wayland event-dispatch bug). The script restarts it and re-kicks the
