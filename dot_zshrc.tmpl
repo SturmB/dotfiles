@@ -54,6 +54,24 @@ export FZF_BASE="/usr/share/fzf"
 # Completions
 autoload -Uz compinit && compinit
 
+{{ if eq .chezmoi.osRelease.id "ubuntu" -}}
+# Ubuntu's _apt completion treats a literal ~/ path as a package name, so TAB
+# rings instead of completing local .deb paths. Preserve normal APT completion
+# and hand literal home-relative paths to the standard file completer.
+if [[ -r /usr/share/zsh/functions/Completion/Debian/_apt ]]; then
+  source /usr/share/zsh/functions/Completion/Debian/_apt
+  functions[_apt_system]=$functions[_apt]
+  _apt() {
+    local cur=${words[CURRENT]}
+    if [[ $cur == '~/'* ]]; then
+      _files
+    else
+      _apt_system "$@"
+    fi
+  }
+fi
+{{- end }}
+
 # Prompt
 command -v starship >/dev/null && eval "$(starship init zsh)"
 
