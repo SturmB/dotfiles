@@ -13,12 +13,8 @@ readonly reconnect_delay_seconds=3
 readonly restart_cooldown_seconds=10
 last_restart_at=0
 
-handle_log_line() {
-    local line=$1
+recover_espanso() {
     local now
-
-    [[ "$line" == *"Can't read from device /dev/input/event"* && \
-       "$line" == *"removing from epoll"* ]] || return 0
 
     now=$(date +%s)
     (( now - last_restart_at >= restart_cooldown_seconds )) || return 0
@@ -33,10 +29,56 @@ handle_log_line() {
     espanso launcher >/dev/null 2>&1 &
 }
 
+handle_log_line() {
+    local line=$1
+
+    [[ "$line" == *"Can't read from device /dev/input/event"* && \
+       "$line" == *"removing from epoll"* ]] || return 0
+
+    recover_espanso
+}
+
+handle_keyboard_identity() {
+    local previous=$1 current=$2
+
+    [[ -n "$previous" && -n "$current" && "$previous" != "$current" ]] || return 0
+
+    recover_espanso
+}
+
+current_keyboard_identity() {
+    local line='' matched=0 sysfs='' event=''
+
+    while IFS= read -r line; do
+        if [[ "$line" == 'N: Name="Keychron Keychron Q6 HE Keyboard"' ]]; then
+            matched=1
+            sysfs=''
+            event=''
+            continue
+        fi
+
+        if (( matched )); then
+            [[ "$line" == 'S: Sysfs='* ]] && sysfs=${line#S: Sysfs=}
+            if [[ "$line" == 'H: Handlers='* && "$line" =~ event([0-9]+) ]]; then
+                event=${BASH_REMATCH[1]}
+            fi
+            if [[ -z "$line" ]]; then
+                [[ -n "$sysfs" && -n "$event" ]] && printf 'event%s|%s\n' "$event" "$sysfs"
+                return 0
+            fi
+        fi
+    done < /proc/bus/input/devices
+}
+
 main() {
-    tail -n0 -F "$log_file" 2>/dev/null | while IFS= read -r line; do
-        pgrep -x Hyprland >/dev/null || break
-        handle_log_line "$line"
+    local previous='' current=''
+
+    previous=$(current_keyboard_identity)
+    while pgrep -x Hyprland >/dev/null; do
+        current=$(current_keyboard_identity)
+        handle_keyboard_identity "$previous" "$current"
+        [[ -n "$current" ]] && previous=$current
+        sleep 1
     done
 }
 

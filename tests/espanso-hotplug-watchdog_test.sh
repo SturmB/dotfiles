@@ -50,6 +50,14 @@ handle_log_line '12:01:00 [worker(1)] [WARN] Can'"'"'t read from device /dev/inp
 wait
 assert_calls $'sleep 3\nservice stop\nlauncher'
 
+# KVM reconnects may reuse the same /dev/input/eventN. Detect the new sysfs HID
+# instance instead, and recover when the Keychron identity changes.
+: >"$calls"
+last_restart_at=0
+handle_keyboard_identity 'event3|0003:3434:0B60.00A1' 'event3|0003:3434:0B60.00B9'
+wait
+assert_calls $'sleep 3\nservice stop\nlauncher'
+
 # Ordinary Espanso diagnostics must not restart it.
 : >"$calls"
 handle_log_line '12:00:01 [worker(1)] [WARN] unable to determine keyboard layout automatically'
