@@ -1,6 +1,6 @@
-{{ if not .work }}
-.ssh/id_ed25519_iel
-.ssh/id_ed25519_iel.pub
+{{ if eq .chezmoi.hostname "titan" }}
+# Existing installation: never run package bootstrap during reconciliation.
+install-packages.sh
 {{ end }}
 windows-terminal
 README.md
@@ -12,15 +12,10 @@ tests
 .bashrc
 {{ end }}
 {{ if not .work }}
-.gitconfig-work
-.config/atlassian
-.config/espanso/match/IEL.yml
 .config/php
 .claude/skills/lerd
 .claude/commands/code-review.md
-.claude/commands/guideline-triage.md
 .claude/commands/prs-to-review.md
-.claude/commands/review-multi-prs.md
 {{ end }}
 {{ if not (and (eq .chezmoi.osRelease.id "ubuntu") (eq .profile "work")) }}
 install-php-apt.sh

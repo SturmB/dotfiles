@@ -1,851 +1,168 @@
 ---
 name: lerd
-description: Manage the lerd local PHP development environment — run framework console commands (artisan, bin/console, etc.), manage services, start/stop queue workers, run composer, manage Node.js versions, and inspect site status via MCP tools.
+description: Manage the lerd local PHP development environment via MCP tools: run framework console commands (artisan, bin/console, etc.), manage services, start/stop queue workers, run composer, manage Node.js versions, and inspect site status. Also the way to diagnose and optimize a slow site: find N+1 and slow queries, read per-site response-time and slow-route timings, profile requests, and run site health checks, from real captured traffic rather than reading code.
 ---
-# Lerd — Laravel Local Dev Environment
-
-This project runs on **lerd**, a Podman-based Laravel development environment for Linux (similar to Laravel Herd). The `lerd` MCP server exposes tools to manage it directly from your AI assistant.
-
-## Path resolution
-
-Tools that accept a `path` argument (`artisan`, `composer`, `env_setup`, `env_check`, `db_set`, `site_link`, `site_unlink`, `site_domain`, `db_export`, `db_import`, `db_create`, etc.) resolve it in this order:
-1. Explicit `path` argument
-2. `LERD_SITE_PATH` env var (set when using project-scoped `mcp:inject`)
-3. **Current working directory** — the directory Claude was opened in
-
-In practice, you can almost always omit `path` — just open Claude in the project directory.
-
-## Architecture
-
-- PHP runs inside Podman containers named `lerd-php<version>-fpm` (e.g. `lerd-php84-fpm`)
-- Each PHP-FPM container includes **composer** and **node/npm** so you can run all tooling without leaving the container
-- Nginx routes `*.test` domains to the appropriate FPM container
-- Services (MySQL, Redis, PostgreSQL, etc.) run as Podman containers via systemd quadlets
-- Custom services (MongoDB, RabbitMQ, …) can be added with `service_add` and managed identically to built-in ones
-- Node.js versions are managed by **fnm** (Fast Node Manager); pin per-project with a `.node-version` file
-- Framework workers (queue, schedule, reverb, messenger, vite, etc.) run as systemd user services named `lerd-<worker>-<sitename>` (e.g. `lerd-queue-myapp`, `lerd-messenger-myapp`). Workers with `per_worktree: true` get an extra `-<branch>` suffix when started on a worktree (e.g. `lerd-vite-myapp-feat-x`) so each branch runs its own instance with its own auto-incremented ports
-- Worker commands are defined per-framework in YAML definitions; Laravel ships with queue/schedule/reverb/horizon and a `vite` host worker (runs `npm run dev` on the host via fnm for HMR); custom frameworks can add any workers; workers and setup commands support an optional `check` field (`file` or `composer`) to conditionally show them based on project dependencies. Per-worker flags: `host: true` runs on the host via fnm instead of inside FPM (used for HMR-sensitive Node tools); `per_worktree: true` lets the worker run independently per worktree; `replaces_build: true` declares the worker provides the asset manifest, so `lerd worktree add` skips the static `npm run build` step when this worker is opted into
-- Framework definitions can include `setup` commands (one-off bootstrap steps like migrations, storage links) shown in `lerd setup`; Laravel has built-in storage:link/migrate/db:seed
-- **Custom containers**: non-PHP sites (Node.js, Python, Go, etc.) can define a `Containerfile.lerd` and a `container:` section in `.lerd.yaml` with a port. Lerd builds a per-project image (`lerd-custom-<sitename>:local`), runs it as `lerd-custom-<sitename>`, and nginx reverse-proxies to it. Workers exec into the custom container. Services are accessible by name (`lerd-mysql`, `lerd-redis`, etc.) on the shared `lerd` Podman network.
-- Git worktrees automatically get a `<branch>.<site>.test` subdomain (with deep `*.<branch>.<site>.test` wildcard cert + nginx `server_name` on secured sites); `vendor/`, `node_modules/`, and `.env` are populated from the main checkout. `.lerd.yaml` `env_overrides` declares templated env vars (placeholders `{{domain}}`, `{{scheme}}`, `{{site}}`, plus plain strings) layered on top of the default `APP_URL` rewrite — useful for multi-tenant apps with per-branch session cookies, signed-URL hosts, or tenant routing
-- DNS resolves `*.test` to `127.0.0.1` via the lerd-dns dnsmasq container
-
-## DNS modes
-
-Lerd supports two DNS modes set at install time and recorded in `~/.config/lerd/config.yaml` under the `dns` key:
-
-- **Managed (default)**: `dns.enabled: true`, `dns.tld: test`. The lerd-dns container runs, mkcert installs a trusted CA, sites use `*.test` and HTTPS via `site_tls` is available.
-- **Disabled**: `dns.enabled: false`, `dns.tld: localhost`. No dnsmasq, no mkcert CA, no system resolver tweak. Sites use `*.localhost` (RFC 6761 hardwired to `127.0.0.1`). HTTPS is unavailable, `site_tls` returns an error.
-
-Always read `status()` before assuming a TLD. The response carries `dns.tld` (the active TLD) and `dns.enabled` (false in disabled mode). Construct site URLs from `dns.tld` rather than hardcoding `.test`, and skip suggesting `site_tls` when `dns.enabled` is false.
-
-## Available MCP Tools
-
-### `sites`
-List all registered lerd sites with domains, paths, PHP versions, Node versions, and queue status. **Call this first** to find site names and paths needed by other tools.
-
-### `runtime_versions`
-List all installed PHP and Node.js versions and the configured defaults. Call this to check what runtimes are available before running commands.
-
-### `php_list`
-List all PHP versions installed by lerd as JSON, with each version's `default` flag. Use this to confirm which versions are available before calling `site_php`, `php_ext`, or `xdebug`.
-
-### `php_ext`
-Manage custom PHP extensions for a PHP version. Extensions are added on top of the bundled lerd FPM image. Adding or removing an extension rebuilds the image and restarts the FPM container (may take a minute).
-
-`add` verifies the extension loaded (`php -m`); a failed PECL build is reported as an error and the config entry removed. Pass `apk_deps` for extensions that need extra Alpine build packages (lerd already knows `imap`'s).
-
-Arguments:
-- `action` (required): `"list"`, `"add"`, or `"remove"`
-- `version` (optional): defaults to the project or global PHP version
-- `extension` (required for `add` and `remove`)
-- `apk_deps` (optional, `add` only): space-separated extra Alpine packages
-
-Examples:
-```
-php_ext(action: "list")
-php_ext(action: "add", extension: "imagick")
-php_ext(action: "add", extension: "redis", version: "8.3")
-php_ext(action: "add", extension: "ssh2", apk_deps: "libssh2-dev")
-php_ext(action: "remove", extension: "imagick")
-```
-
-### `artisan` (Laravel only)
-Run `php artisan` inside the PHP-FPM container for the project. Only available when the site is detected as Laravel. Arguments:
-- `path` (optional): absolute path to the Laravel project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-- `args` (required): artisan arguments as an array
-
-Examples:
-```
-artisan(args: ["migrate"])
-artisan(args: ["make:model", "Post", "-m"])
-artisan(args: ["db:seed", "--class=UserSeeder"])
-artisan(args: ["cache:clear"])
-artisan(args: ["tinker", "--execute=echo App\\Models\\User::count();"])
-```
-
-> **Note:** `tinker` requires `--execute=<code>` for non-interactive use.
-
-### `console` (non-Laravel frameworks)
-Run the framework's console command (e.g. `php bin/console` for Symfony) inside the PHP-FPM container. Only available for non-Laravel frameworks that define a `console` field in their YAML definition. Arguments:
-- `path` (optional): absolute path to the project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-- `args` (required): console arguments as an array
-
-Example — Symfony:
-```
-console(args: ["cache:clear"])
-console(args: ["doctrine:migrations:migrate"])
-console(args: ["messenger:consume", "async", "--time-limit=60"])
-```
-
-### `composer`
-Run `composer` inside the PHP-FPM container for the project. Arguments:
-- `path` (optional): absolute path to the Laravel project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-- `args` (required): composer arguments as an array
-
-Examples:
-```
-composer(args: ["install"])
-composer(args: ["require", "laravel/sanctum"])
-composer(args: ["dump-autoload"])
-composer(args: ["update", "laravel/framework"])
-```
-
-### `vendor_bins` / `vendor_run`
-Discover and execute composer-installed binaries from the project's `vendor/bin` directory inside the PHP-FPM container. Use `vendor_bins` first to see what tooling is available (pest, phpunit, pint, phpstan, rector, paratest, psalm, etc.), then `vendor_run` to invoke one. Both accept an optional `path` argument that defaults to the current site.
-
-Arguments:
-- `vendor_bins(path?)` — returns the sorted list of executables in `vendor/bin`
-- `vendor_run(path?, bin, args?)` — runs `php vendor/bin/<bin> [args]` inside the FPM container; `bin` must be a plain filename, not a path
-
-Examples:
-```
-vendor_bins()                                      // list available tools
-vendor_run(bin: "pest")                            // run the full pest suite
-vendor_run(bin: "pest", args: ["--filter", "UserTest"])
-vendor_run(bin: "phpunit", args: ["--testsuite", "Feature"])
-vendor_run(bin: "pint", args: ["--test"])          // dry-run pint
-vendor_run(bin: "phpstan", args: ["analyse", "--memory-limit=2G"])
-vendor_run(bin: "rector", args: ["process", "--dry-run"])
-```
-
-Prefer `vendor_run` over `composer(args: ["exec", ...])` — it's faster, doesn't go through composer's plugin pipeline, and the same shortcut is available on the CLI as `lerd <bin>` (e.g. `lerd pest`, `lerd pint`).
-
-### `node`
-Install or uninstall a Node.js version via fnm. Accepts a version number or alias.
-
-Arguments:
-- `action` (required): `"install"` or `"uninstall"`
-- `version` (required)
-
-```
-node(action: "install", version: "20")
-node(action: "install", version: "20.11.0")
-node(action: "install", version: "lts")
-node(action: "uninstall", version: "18.20.0")
-```
-
-After installing a version you can pin it to a project by writing a `.node-version` file in the project root (or run `lerd isolate:node <version>` from a terminal).
-
-### `service_control`
-Start, stop, pin, or unpin any service — built-in or custom.
-
-Arguments:
-- `action` (required): `"start"`, `"stop"`, `"pin"`, or `"unpin"`
-- `name` (required): service name
-
-`service_control(action: "stop", ...)` marks the service as **paused** — `lerd start` and autostart on login will skip it until you explicitly start it again.
-
-`service_control(action: "pin", ...)` marks a service so it is **never auto-stopped**, even when no active sites reference it in their `.env`. Starts the service if it isn't already running. Use this for services you want always available regardless of which site is active (e.g. a shared Redis or MySQL). `service_control(action: "unpin", ...)` removes the pin so the service can be auto-stopped when no sites use it.
-
-**Dependency cascade:** if a custom service has `depends_on` set, starting its dependency also starts it; stopping the dependency stops it first. Starting the custom service directly ensures its dependencies start first.
-
-Built-in names: `mysql`, `redis`, `postgres`, `meilisearch`, `rustfs`, `mailpit`. Custom service names (registered with `service_add`) are also accepted — just pass the same name used in `service_add`.
-
-**.env values for built-in lerd services:**
-
-| Service | Host | Key vars |
-|---------|------|----------|
-| mysql | `lerd-mysql` | `DB_CONNECTION=mysql`, `DB_PASSWORD=lerd` |
-| postgres | `lerd-postgres` | `DB_CONNECTION=pgsql`, `DB_PASSWORD=lerd` |
-| redis | `lerd-redis` | `REDIS_PASSWORD=null` |
-| mailpit | `lerd-mailpit:1025` | web UI: http://localhost:8025 |
-| meilisearch | `lerd-meilisearch:7700` | |
-| rustfs | `lerd-rustfs:9000` | `AWS_USE_PATH_STYLE_ENDPOINT=true` |
-
-### `service_expose`
-Add or remove an extra published port on a built-in service. The mapping is persisted in `~/.config/lerd/config.yaml` and applied on every start. The service is restarted automatically if running.
-
-Arguments:
-- `name` (required): built-in service name (`mysql`, `redis`, `postgres`, `meilisearch`, `rustfs`, `mailpit`)
-- `port` (required): mapping as `"host:container"`, e.g. `"13306:3306"`
-- `remove` (optional): set to `true` to remove the mapping instead of adding it
-
-Examples:
-```
-service_expose(name: "mysql", port: "13306:3306")
-service_expose(name: "mysql", port: "13306:3306", remove: true)
-```
-
-### `service_add` / `service_remove`
-Register or remove a custom OCI-based service. Arguments for `service_add`:
-- `name` (required): slug, e.g. `"mongodb"`
-- `image` (required): OCI image, e.g. `"docker.io/library/mongo:7"`
-- `ports` (optional): array of `"host:container"` mappings
-- `environment` (optional): array of `"KEY=VALUE"` strings for the container
-- `env_vars` (optional): array of `"KEY=VALUE"` strings shown in `lerd env` suggestions
-- `data_dir` (optional): mount path inside container for persistent data
-- `description` (optional): human-readable description
-- `dashboard` (optional): URL for the service's web UI
-- `depends_on` (optional): array of service names that must be running before this service starts, e.g. `["mysql"]`
-
-When `depends_on` is set:
-- Starting this service automatically starts its dependencies first
-- Starting a dependency automatically starts this service afterwards
-- Stopping a dependency automatically stops this service first (cascade stop)
-
-Example — add MongoDB:
-```
-service_add(
-  name: "mongodb",
-  image: "docker.io/library/mongo:7",
-  ports: ["27017:27017"],
-  data_dir: "/data/db",
-  env_vars: ["MONGODB_URL=mongodb://lerd-mongodb:27017"]
-)
-service_control(action: "start", name: "mongodb")
-```
-
-Example — add phpMyAdmin depending on MySQL:
-```
-service_add(
-  name: "phpmyadmin",
-  image: "docker.io/phpmyadmin:latest",
-  ports: ["8080:80"],
-  depends_on: ["mysql"],
-  dashboard: "http://localhost:8080"
-)
-service_control(action: "start", name: "phpmyadmin")   // starts mysql first, then phpmyadmin
-```
-
-`service_remove` stops and deregisters a custom service. Persistent data is NOT deleted.
-
-### `service_preset_list` / `service_preset_install`
-Lerd ships a small catalogue of opt-in **service presets** — bundled YAML definitions for common dev services that become normal custom services once installed. Use `service_preset_list` to see what's available and `service_preset_install` to install one. Prefer this over hand-rolling `service_add` for anything in the catalogue: presets ship sane defaults, dependency wiring, dashboard URLs, and (where relevant) rendered config files.
-
-Current catalogue: `phpmyadmin` (depends on built-in mysql), `pgadmin` (depends on built-in postgres, ships a pre-loaded servers.json + pgpass), `mongo`, `mongo-express` (depends on the `mongo` preset), `selenium` (Chromium for browser testing — Dusk, Panther, etc.), `stripe-mock`. Some presets (e.g. `mysql`, `mariadb`) declare multiple versions in a single family — pass `version` to pick one, otherwise lerd installs the family default.
-
-Arguments:
-- `service_preset_list()` — returns each preset with its image, declared versions, dependencies, dashboard URL, and an `installed` flag
-- `service_preset_install(name, version?)` — installs a preset by name; `version` is required only for multi-version families when you want a specific tag
-
-Examples:
-```
-service_preset_list()
-service_preset_install(name: "phpmyadmin")           // adds phpmyadmin, mysql is built-in
-service_preset_install(name: "mongo")                // install mongo first…
-service_preset_install(name: "mongo-express")        // …then mongo-express (gated otherwise)
-service_preset_install(name: "mysql", version: "8.4")
-service_control(action: "start", name: "phpmyadmin") // mysql is started automatically
-```
-
-**Dependency gating:** installing a preset whose dependency is another *custom* service (e.g. `mongo-express` on `mongo`) is rejected with a clear error until the dependency is installed first. Built-in deps (mysql, postgres) are auto-satisfied.
-
-Once installed, presets are normal custom services — manage them with `service_control`, `service_remove`, and `service_expose`.
-
-### `service_env`
-Return the recommended Laravel `.env` connection variables for a service — built-in or custom — as a key/value map. Use this when you need to inspect or manually apply connection settings without running `env_setup`.
-
-### `env_setup`
-Configure the project's `.env` for lerd in one call:
-- Creates `.env` from `.env.example` if it doesn't exist
-- Detects which services (MySQL, Redis, …) the project uses and sets lerd connection values
-- Starts any referenced services that aren't running
-- Creates the project database (and `<name>_testing` database)
-- Generates `APP_KEY` if missing
-- Sets `APP_URL` (or the framework's URL key) using the precedence chain: `.lerd.yaml` `app_url` → `sites.yaml` `app_url` → default `<scheme>://<primary-domain>` — see "Custom APP_URL" below
-
-Arguments:
-- `path` (optional): absolute path to the Laravel project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-
-> Run this right after `site_link` when setting up a fresh project.
->
-> **Database default:** on a fresh Laravel clone where `.env` still says `DB_CONNECTION=sqlite`, `env_setup` leaves the database choice alone. Call `db_set` first to pick `sqlite`, a built-in (`mysql` / `postgres`), or an installed family alternate (`mariadb`, `postgres-pgvector`, …) deliberately, then `env_setup` (or just `db_set` alone — it already runs the env step).
-
-### `db_set`
-Pick the database for a Laravel project. Persists the choice to `.lerd.yaml` (replacing any prior DB entry), rewrites `DB_` keys in `.env`, and provisions storage. Accepts `sqlite`, the built-in `mysql` / `postgres`, or any installed family alternate (`mariadb`, `mysql-5-7`, `postgres-pgvector`, `postgres-17`, …). Alternates must be installed first with `lerd service preset <name>`.
-
-Arguments:
-- `path` (optional): project root, defaults to `LERD_SITE_PATH` / cwd
-- `database` (required): see above
-
-Examples:
-```
-db_set(database: "mysql")
-db_set(database: "postgres-pgvector")
-db_set(database: "sqlite")
-```
-
-> Use this **before** `env_setup` on a fresh Laravel project so the database lands in `.env` deliberately. Switching databases later via `db_set` removes the previous database entry from `.lerd.yaml` automatically.
-
-### `db_snapshot` / `db_snapshots` / `db_restore` / `db_snapshot_delete`
-Named, restorable point-in-time copies of the project database — take one before a risky migration or a destructive experiment, then roll back in a single call. SQL engines only (MySQL, MariaDB, PostgreSQL); snapshots are stored under lerd's data dir, keyed by service and database.
-
-- `db_snapshot` — create a snapshot. `name` is optional (auto-timestamped); `all_databases` snapshots every database in the service.
-- `db_snapshots` — list snapshots as JSON. `all` spans every database on the service.
-- `db_restore` — restore a snapshot by `name`. Destructive: a per-database restore drops and recreates the database.
-- `db_snapshot_delete` — delete a stored snapshot.
-
-All four resolve the database from the project `.env`; pass `service` and `database` to override.
-
-Example:
-```
-db_snapshot(name: "pre-migration")
-db_restore(name: "pre-migration")
-```
-
-### Custom `APP_URL`
-By default `env_setup` writes `APP_URL=<scheme>://<primary-domain>` (e.g. `http://myapp.test`) on every run. Three-tier override chain when you need a different value:
-
-1. `.lerd.yaml` `app_url` field — committed to the repo, applies to every machine. Use for path prefixes, ports, or unrelated hostnames the whole team should share.
-2. `~/.local/share/lerd/sites.yaml` `app_url` field on the site entry — per-machine override, not committed.
-3. The default `<scheme>://<primary-domain>` generator — used when neither override is set.
-
-There is no MCP tool to set `app_url` programmatically; the user (or you) edit `.lerd.yaml` directly and re-run `env_setup` (or any command that runs `lerd env` internally) to apply it.
-
-Example `.lerd.yaml`:
-```yaml
-domains:
-  - myapp
-app_url: http://myapp.test/api
-```
-
-If the configured `app_url` happens to point at a domain that the conflict filter dropped, lerd silently falls through to the next precedence level so `.env` doesn't end up writing a hostname owned by another site.
-
-### `env_check`
-Compare all `.env` files (`.env`, `.env.testing`, `.env.local`, …) against `.env.example` and return structured JSON with missing or extra keys. Useful for catching "works on my machine" bugs caused by env drift after pulling new code.
-
-Returns: `{"in_sync": bool, "keys": [{key, in_example, files: {filename: bool}}], "out_of_sync_count": N}`
-
-Arguments:
-- `path` (optional): absolute path to the project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-
-### `site_link` / `site_unlink`
-Register or unregister a directory as a lerd site. Arguments for `site_link`:
-- `path` (optional): absolute path to the project directory — defaults to `LERD_SITE_PATH` set by `mcp:inject`
-- `name` (optional): domain name without TLD (e.g. `"myapp"` becomes `myapp.test`; defaults to directory name, cleaned up)
-
-> **Non-PHP projects (Node.js, Python, Go, etc.):** a Containerfile and `.lerd.yaml` with a `container: {port: <N>}` section must exist **before** calling `site_link`. The Containerfile can be named anything (`Containerfile.lerd` is the default; set `container.containerfile` to point at a different name like `Dockerfile`). Write `.lerd.yaml` directly (there is no MCP tool for this — see the custom container setup workflow in the Workflows section below), or ask the user to run `lerd init` which runs an interactive wizard and writes the file. Calling `site_link` without this config registers the site as a PHP-FPM site, which is wrong. If that happened, call `site_unlink` first, set up the files, then `site_link` again.
-
-`site_unlink` takes `path` (optional, same resolution as `site_link`). Removes the site and all its domains. Project files are NOT deleted.
-
-### `site_domain`
-Add or remove additional domains for a site. Each site can have multiple domains (all served by the same nginx vhost).
-- `action` (required): `"add"` or `"remove"`
-- `path` (optional): project directory
-- `domain` (required): domain name without TLD (e.g. `"api"` becomes `api.test`)
-
-Cannot remove the last domain. When a site is secured, the TLS certificate is automatically reissued to cover all domains.
-
-### `park` / `unpark`
-`park` registers a parent directory: it scans every immediate subdirectory and auto-registers any PHP projects found as lerd sites. Use this when you keep many projects under one folder.
-
-`unpark` removes the registration and unlinks all sites whose paths are under that directory. Project files are NOT deleted.
-
-Both take `path` (optional, defaults to LERD_SITE_PATH or cwd).
-
-### `site_tls`
-Enable or disable HTTPS for a site using a locally-trusted mkcert certificate. `APP_URL` in `.env` is updated automatically.
-
-Arguments:
-- `action` (required): `"enable"` or `"disable"`
-- `site` (required): site name
-
-### `xdebug`
-Toggle Xdebug for a PHP version (restarts the FPM container) or report its state. Xdebug listens on port `9003` at `host.containers.internal`.
-
-Arguments:
-- `action` (required): `"on"`, `"off"`, or `"status"`
-- `version` (optional): defaults to the project or global PHP version
-- `mode` (optional, only for `on`): default `debug`. Valid values: `debug`, `coverage`, `develop`, `profile`, `trace`, `gcstats`, or a comma-separated combo such as `debug,coverage`
-
-Use `coverage` for `phpunit --coverage` / `pest --coverage` when PCOV isn't available or is disabled. Calling `xdebug(action: "on", ...)` with a different mode on an already-enabled version swaps modes without needing `action: "off"` first.
-
-`xdebug(action: "status")` returns the enabled/disabled state and the active `mode` for all installed PHP versions.
-
-### `dumps_recent` / `dumps_status` / `dumps_clear` / `dumps_toggle`
-Capture and inspect `dump()` / `dd()` output via the lerd dump bridge. Off by default — enable globally with `dumps_toggle(enable: true)`, then call `dumps_recent` to read what your last request produced.
-
-- `dumps_recent({ site?, ctx?, since?, limit? })` returns the buffered events as JSON (most-recent at the tail). Use `site` to scope to one site (matches `ctx.site`), `ctx` (`"fpm"` or `"cli"`) to filter by source, `since` (event id) to skip events you've already seen, and `limit` to cap the result.
-- `dumps_status()` reports whether the bridge is enabled, whether the receiver is listening, the listener address, the buffered event count, and the timestamp of the most recent event.
-- `dumps_clear()` wipes the in-memory ring without disabling the bridge — handy before triggering a focused repro.
-- `dumps_toggle({ enable: true | false })` flips the global on/off via a sentinel file inside the always-mounted bridge directory. `enable: true` touches the sentinel, `enable: false` removes it. No FPM container is restarted by either path.
-
-Events ship as JSON with `ts` (RFC3339Nano), `ctx` (type, site, request, pid), `src` (file:line of the dump call), `label` (the keyword arg name when present), and `text` (Symfony VarDumper's CliDumper output). Capacity is 500 events; older entries roll off.
-
-### `profiler_toggle` / `profiler_status` / `profiler_clear`
-Turn the SPX profiler on or off globally. While on, every HTTP request to every PHP-FPM site is profiled into a flame graph.
-
-- `profiler_toggle({ enable })` turns profiling on (`enable: true`) or off. It rewrites every FPM site's nginx vhost to inject an SPX cookie and reloads nginx, with no FPM restart.
-- `profiler_status()` reports whether profiling is on and the SPX web UI URL where the flame graphs are viewable.
-- `profiler_clear()` deletes every captured SPX report and returns how many were removed.
-
-After turning it on, reload a site in the browser, then open the dashboard Profiler view or the SPX web UI to read the flame graphs.
-
-### `queue`
-Start or stop a queue worker for a site. Available for any framework that defines a `queue` worker (Laravel has it built-in). Runs the framework-defined command in the FPM container as a systemd service.
-
-> **Redis queues:** if the project's `.env` has `QUEUE_CONNECTION=redis`, lerd will refuse to start the worker unless `lerd-redis` is running. Call `service_control(action: "start", name: "redis")` first.
-
-Arguments:
-- `action` (required): `"start"` or `"stop"`
-- `site` (required): site name from `sites` tool
-- `queue` (optional, `start` only): queue name, default `"default"`
-- `tries` (optional, `start` only): max job attempts, default `3`
-- `timeout` (optional, `start` only): job timeout in seconds, default `60`
-
-### `horizon`
-Start or stop Laravel Horizon for a site. Horizon is a queue manager that replaces `queue:work` — use `horizon` instead of `queue` for projects that have `laravel/horizon` in `composer.json`. Returns an error on `action: "start"` if `laravel/horizon` is not installed.
-
-Arguments:
-- `action` (required): `"start"` or `"stop"`
-- `site` (required): site name from `sites` tool
-
-> **Horizon vs queue worker:** The `sites` tool returns `has_horizon: true` when a site has Horizon installed. In that case prefer `horizon` over `queue`.
-
-### `reverb`
-Start or stop the Reverb WebSocket server for a site. Available for any framework that defines a `reverb` worker.
-
-Arguments:
-- `action` (required): `"start"` or `"stop"`
-- `site` (required): site name from `sites` tool
-
-### `schedule`
-Start or stop the task scheduler for a site. Available for any framework that defines a `schedule` worker.
-
-Arguments:
-- `action` (required): `"start"` or `"stop"`
-- `site` (required): site name from `sites` tool
-
-### `worker`
-Start or stop any named framework worker for a site. Use this for workers that don't have a dedicated shortcut (e.g. `messenger` for Symfony, `pulse` for Laravel, `vite` for Laravel HMR). The worker command is taken from the framework definition.
-
-Arguments:
-- `action` (required): `"start"` or `"stop"`
-- `site` (required): site name from `sites` tool
-- `worker` (required): worker name as defined in the framework (e.g. `"messenger"`, `"horizon"`, `"vite"`)
-- `branch` (optional): worktree branch name. Required to start a `per_worktree: true` worker on a specific worktree (targets `lerd-<worker>-<site>-<branch>`). Without `branch`, the parent-site unit is targeted (`lerd-<worker>-<site>`)
-
-Examples:
-```
-worker(action: "start", site: "myapp", worker: "vite")                       // parent site Vite
-worker(action: "start", site: "myapp", worker: "vite", branch: "feat-x")     // per-worktree Vite
-worker(action: "stop",  site: "myapp", worker: "vite", branch: "feat-x")     // stop just the worktree's instance
-```
-
-### `worker_list`
-List all workers defined for a site's framework, with their running status, command, unit name, restart policy, and per-worker flags (`host`, `per_worktree`, `replaces_build`). Use this to discover available workers before calling `worker`.
-
-Arguments:
-- `site` (required): site name from `sites` tool
-- `branch` (optional): worktree branch name. With `branch`, status is reported for `lerd-<worker>-<site>-<branch>` units instead of the parent-site units
-
-### `commands_list` / `commands_run` / `command_add` / `command_remove`
-One-shot framework commands (`optimize:clear`, `migrate`, `drush uli`, `cache:flush`, etc). Set = framework yaml + project `.lerd.yaml` `commands:`. Prefer over invoking `php artisan` / `drush` / `wp` directly because per-project overrides are honored. `command_add` writes to `.lerd.yaml`; use `disabled: true` to suppress a framework default without replacement.
-
-Arguments:
-- `site` (required): site name
-- `name` (commands_run / command_add / command_remove): name from `commands_list` or a new identifier
-- `command` (command_add): shell command (required unless `disabled: true`)
-- `label`, `description`, `icon` (command_add, optional)
-- `output` (command_add): `silent | text | url | terminal` (default silent)
-- `confirm` (command_add): gate behind a safety modal
-- `check_file` / `check_composer` (command_add): hide unless the rule passes
-- `disabled` (command_add): suppress a framework default of the same name
-- `force` (commands_run): required for confirm-gated commands
-
-### `worker_add`
-Add or update a custom worker for a project. Saves to `.lerd.yaml` `custom_workers` by default, or to the global framework overlay (`~/.config/lerd/frameworks/`) with `global: true`. Does not auto-start — use `worker(action: "start", ...)` afterwards.
-
-Arguments:
-- `site` (required): site name from `sites` tool
-- `name` (required): worker name (slug, e.g. `"pdf-generator"`)
-- `command` (required): command to run inside the PHP-FPM container
-- `label`: human-readable label
-- `restart`: `"always"` or `"on-failure"` (default: always)
-- `check_file`: only show worker when this file exists
-- `check_composer`: only show worker when this Composer package is installed
-- `conflicts_with`: array of workers to stop before starting this one
-- `global`: save to global framework overlay instead of `.lerd.yaml`
-
-### `worker_remove`
-Remove a custom worker from a project's `.lerd.yaml` or global framework overlay. Stops the worker if running.
-
-Arguments:
-- `site` (required): site name from `sites` tool
-- `name` (required): worker name to remove
-- `global`: remove from global framework overlay instead of `.lerd.yaml`
-
-### `worktree`
-Manage git worktrees for a site. Watcher auto-installs deps on add and presents a unified asset-worker / npm-build prompt (workers with `replaces_build` + `per_worktree` appear alongside npm scripts; picked workers start ad-hoc with `persist=false`, leaving `.lerd.yaml workers:` as the source of truth). Worktrees on secured sites get `*.<branch>.<site>.test` wildcard cert SANs and nginx `server_name` automatically.
-
-Arguments:
-- `action` (required): `"list"` / `"add"` / `"remove"` / `"db_isolate"` / `"db_share"`
-- `site` (optional): defaults to the site at cwd (or its parent for worktree paths)
-- `branch` (required for add / remove / db_isolate): branch name
-- `git_args` (array, optional): forwarded to `git worktree`; use this to pass `-b new-branch` etc.
-- `force` (optional, remove): `--force` flag for `git worktree remove`
-- `keep_db` (optional, remove): preserve isolated DB on removal (default `true`)
-- `source` (optional, db_isolate): seed for the isolated DB (`empty` / `main` / `<branch>`)
-
-To toggle a per-worktree worker (e.g. Vite on branch `feat-x`), call `worker(action: "start", site: "myapp", worker: "vite", branch: "feat-x")`; this targets `lerd-vite-myapp-feat-x` rather than the parent unit.
-
-Multi-tenant `.env` per worktree: declare `env_overrides` in `.lerd.yaml` with `{{domain}}` / `{{scheme}}` / `{{site}}` placeholders, e.g. `SESSION_DOMAIN: ".{{domain}}"` so cookies scope per branch.
-
-### `project_new`
-Scaffold a new PHP project using a framework's create command. For Laravel, runs `composer create-project --no-install --no-plugins --no-scripts laravel/laravel <path>`. Other frameworks must have a `create` field in their YAML definition.
-
-Arguments:
-- `path` (required): absolute path for the new project directory (e.g. `/home/user/code/myapp`)
-- `framework` (optional): framework name (default: `"laravel"`)
-- `args` (optional): extra arguments passed to the scaffold command
-
-After creation, register and configure the project:
-```
-project_new(path: "/home/user/code/myapp")
-site_link(path: "/home/user/code/myapp")
-env_setup(path: "/home/user/code/myapp")
-```
-
-From the terminal you can also run:
-```
-lerd new myapp
-cd myapp && lerd link && lerd setup
-```
-
-### `framework_list`
-List all available framework definitions (Laravel built-in plus any user-defined YAMLs at `~/.config/lerd/frameworks/`), including their defined workers and setup commands. Call this before `framework_add` to see what already exists.
-
-### `framework_add`
-Create or update a framework definition. For `laravel`, only the `workers` and `setup` fields are accepted (built-in settings are always preserved). For other frameworks, creates a full definition.
-
-Arguments:
-- `name` (required): framework slug (e.g. `"symfony"`). Use `"laravel"` to add custom workers to the built-in Laravel definition (e.g. `horizon`, `pulse`)
-- `label` (optional): display name, e.g. `"Symfony"`
-- `public_dir` (optional): document root relative to project (default: `"public"`)
-- `detect_files` (optional): array of filenames that signal this framework
-- `detect_packages` (optional): array of Composer packages that signal this framework
-- `env_file` (optional): primary env file path (default: `".env"`)
-- `env_format` (optional): `"dotenv"` or `"php-const"`
-- `workers` (optional): map of worker name → `{label, command, restart, check}` — `check` is optional (`{file}` or `{composer}`), worker only shown when check passes
-- `setup` (optional): array of one-off setup commands shown in `lerd setup` wizard, each with `{label, command, default, check}` — `check` is optional, same format as workers
-
-Example — add Horizon to Laravel:
-```
-framework_add(name: "laravel", workers: {
-  "horizon": {"label": "Horizon", "command": "php artisan horizon", "restart": "always"}
-})
-```
-
-Example — define a new framework:
-```
-framework_add(
-  name: "wordpress",
-  label: "WordPress",
-  public_dir: ".",
-  detect_files: ["wp-login.php"],
-  workers: {
-    "cron": {"label": "WP Cron", "command": "wp cron event run --due-now --allow-root", "restart": "always"}
-  }
-)
-```
-
-### `framework_remove`
-Delete a user-defined framework YAML. For `laravel`, removes only custom worker and setup command additions (built-in queue/schedule/reverb workers and storage:link/migrate/db:seed setup remain). Takes `name` (required).
-
-### `site_php` / `site_node`
-Change the PHP or Node.js version for a registered site. Both take `site` (required), `version` (required), and an optional `branch` (worktree).
-
-`site_php` writes a `.php-version` pin file to the project root, updates the site registry, and regenerates the nginx vhost. The FPM container for the target PHP version must be running — start it with `service_control(action: "start", name: "php<version>")` if needed.
-
-`site_node` writes a `.node-version` pin file and installs the version via fnm if it isn't already installed. Run `npm install` inside the project if dependencies need rebuilding against the new version.
-
-Pass `branch` to pin the version on a specific worktree instead of the parent site. The pin file is written inside the worktree's checkout, `php_version` / `node_version` is persisted to that worktree's `.lerd.yaml` (so the override travels with the branch in git), and only that worktree's nginx vhost is regenerated. The parent site's version stays unchanged.
-
-### `workers_mode`
-Show or set the macOS worker runtime mode.
-
-Arguments:
-- `action` (required): `"get"` or `"set"`
-- `mode` (required for set): `"exec"` (default; one `podman exec` per worker, supervised by launchd, lower memory) or `"container"` (one detached container per worker, 1:1 supervisor boundary, higher memory)
-
-Linux always uses exec under systemd — this setting is a no-op there. Setting on macOS stops each active worker in its old shape, cleans up the stale on-disk artifacts, and restarts it in the new shape.
-
-### `bug_report`
-Generate a plain-text diagnostic report for a GitHub issue. Collects `lerd doctor` output, config files, systemd / podman state, recent service logs and a curated set of environment variables.
-
-Arguments:
-- `output` (optional): file path. Defaults to `./lerd-bug-report-<timestamp>.txt`
-- `log_lines` (optional): lines per service / container log. Default 200.
-- `show_real_names` (optional): keep real site names, domains and parked-directory paths instead of replacing them with `site-1` / `$PARK_1` / etc. Use only for local debugging — anonymisation is on by default for issue posting.
-
-Returns the file path so the user can attach it to the issue.
-
-### `site_control`
-Pause, unpause, restart, or rebuild a site.
-
-Arguments:
-- `action` (required): `"pause"`, `"unpause"`, `"restart"`, or `"rebuild"`
-- `site` (required): site name from `sites` tool
-
-- `pause`: stops all running workers for the site, stops the custom container (for custom container sites), and replaces its nginx vhost with a landing page that includes a **Resume** button. Services no longer needed by any active site are auto-stopped. The paused state is persisted.
-- `unpause`: starts the custom container (if applicable), restores the nginx vhost, ensures required services are running, and restarts any workers that were running when the site was paused.
-- `restart`: restarts the container for a site without rebuilding the image. For custom container sites this restarts the dedicated container; for PHP sites it restarts the shared FPM container.
-- `rebuild`: rebuilds the custom container image from the Containerfile and restarts the container. Use after changing the Containerfile. `site_link` reuses the cached image; `rebuild` forces a fresh build. Only works for custom container sites.
-
-Use `pause` / `unpause` to free up resources for sites you're not actively working on without fully unlinking them.
-
-### `site_runtime`
-Switch the PHP runtime for a site between the shared PHP-FPM container (`fpm`, default) and a per-site FrankenPHP container (`frankenphp`). Arguments:
-- `site` (required): site name from `sites` tool
-- `runtime` (required): `fpm` or `frankenphp`
-- `worker` (optional, default false): when runtime=frankenphp, enable worker mode (keeps PHP resident for ~10-50x faster requests)
-
-FrankenPHP is framework-aware: Laravel uses `octane:start --server=frankenphp --workers=auto` (needs pcntl, installed at container start); Symfony uses `frankenphp php-server --worker=public/index.php --watch` for live reload; unknown frameworks fall back to `frankenphp php-server` rooted at the framework's public dir. Switching to `fpm` removes the runtime fields from `.lerd.yaml` and regenerates the FPM vhost. Not supported on custom-container sites (their runtime comes from their Containerfile). Xdebug is not wired up for FrankenPHP; switch back to `fpm` to debug.
-
-### `stripe`
-Start or stop a Stripe webhook listener for a site using the Stripe CLI container. On `start` it reads `STRIPE_SECRET` from the site's `.env` and forwards webhooks to `/stripe/webhook` by default.
-
-Arguments:
-- `action` (required): `"start"` or `"stop"`
-- `site` (required): site name from `sites` tool
-- `api_key` (optional, `start` only): Stripe secret key (defaults to `STRIPE_SECRET` in the site's `.env`)
-- `webhook_path` (optional, `start` only): webhook route path (default: `"/stripe/webhook"`)
-
-### `db_export`
-Export a database to a SQL dump file. Works with any project type — service and database are auto-detected. Arguments:
-- `path` (optional): absolute path to the project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-- `service` (optional): lerd service name to target (e.g. `mysql`, `postgres`) — overrides auto-detection
-- `database` (optional): database name to export — overrides auto-detection
-- `output` (optional): output file path (defaults to `<database>.sql` in the project root)
-
-### `db_import`
-Import a SQL dump file into the project database. Service and database are auto-detected; the service is started if not already running. Arguments:
-- `file` (required): absolute path to the SQL file to import
-- `path` (optional): absolute path to the project root — defaults to the current working directory
-- `service` (optional): lerd service name to target — overrides auto-detection
-- `database` (optional): database name to import into — overrides auto-detection
-
-### `db_create`
-Create a database and a `<name>_testing` variant for the project. Service and database name are auto-detected; the service is started if not already running. Arguments:
-- `path` (optional): absolute path to the project root
-- `service` (optional): lerd service name to target — overrides auto-detection
-- `name` (optional): database name — overrides auto-detection
-
-### `logs`
-Fetch recent container logs. `target` is optional — when omitted, returns logs for the current site's PHP-FPM container (resolved from `LERD_SITE_PATH`). Specify `target` only when you want a different container:
-- `"nginx"` — nginx proxy logs
-- Service name: `"mysql"`, `"redis"`, or any custom service name
-- PHP version: `"8.4"` — logs for that PHP-FPM container
-- Site name — logs for a different site's PHP-FPM container
-
-Optional `lines` parameter (default: 50).
-
-### `status`
-Return the health status of core lerd services as structured JSON: DNS resolution (ok + tld), nginx (running), PHP-FPM containers (running per version), and the file watcher (running). **Call this first when a site isn't loading** — it pinpoints which service is down before suggesting fixes.
-
-### `which`
-Show the resolved PHP version, Node version, document root, and nginx config path for the current site. Call this to confirm which runtime versions a project will use before running commands.
-
-Arguments:
-- `path` (optional): absolute path to the project root — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-
-### `check`
-Validate a project's `.lerd.yaml` file. Returns structured JSON with per-field status (ok/warn/fail). Checks PHP version format and installation, service definitions (built-in, custom, inline), framework references, and worker configuration.
-
-Returns: `{"valid": bool, "errors": N, "warnings": N, "items": [{name, status, detail}]}`
-
-Arguments:
-- `path` (optional): absolute path to the project root containing `.lerd.yaml` — defaults to the current working directory (or `LERD_SITE_PATH` if set by `mcp:inject`)
-
-> **Use this before** `env_setup` or `site_link` to catch configuration errors early.
-
-### `doctor`
-Run a full environment diagnostic. Returns structured JSON with per-check status (ok/warn/fail): podman, systemd, linger, dir writability, config validity, DNS resolution, nginx, PHP images, and update availability.
-
-Returns: `{"version": "...", "checks": [{name, status, detail}], "failures": N, "warnings": N, "php_installed": [...], "php_default": "...", "node_default": "..."}`
-
-**Use this when the user reports setup issues or unexpected behaviour.**
-
-## Common Workflows
-
-Single-tool tasks are covered by the tool definitions above (e.g. `site_tls` enables HTTPS, `doctor` runs a full diagnostic, `logs` tails FPM/nginx). These flows only cover multi-step compositions where ordering or non-obvious glue matters.
-
-**Bootstrap a new project from scratch, end-to-end** — works for any lerd-known framework (laravel, symfony, etc.). **Run every step, in order. Do not stop until `setup` returns.**
-```
-project_new(path: "/abs/path/myapp", framework: "laravel")
-// project_new scaffolds AND runs composer install — vendor/ is populated on return
-site_link(path: "/abs/path/myapp")
-env_setup(path: "/abs/path/myapp")    // .env, services, DB (sqlite auto-created), APP_KEY
-setup(path: "/abs/path/myapp")        // framework Default:true steps — migrations, storage:link, etc.
-// Optional:
-site_tls(action: "enable", site: "myapp")   // HTTPS via mkcert
-```
-
-**Set up a cloned project, end-to-end** — framework-agnostic. **Run every step, in order.**
-```
-site_link()                           // registers cwd as a lerd site
-composer(args: ["install"])           // BEFORE env_setup — APP_KEY generation needs vendor/
-env_setup()                           // .env, services, DB (sqlite auto-created), APP_KEY
-setup()                               // framework migrations + other Default:true setup steps
-// Optional:
-// vendor_run(bin: "pest")            // run tests to confirm everything works
-```
-
-**Debugging a 500 on a lerd site** (ordered, stop at the first signal):
-```
-logs()                                 // current site's FPM + recent errors
-logs(target: "nginx")                  // if FPM logs are clean
-env_check()                            // missing .env keys vs .env.example
-which()                                // confirm PHP version, docroot, vhost
-// If the error mentions vendor/, autoload, or class-not-found:
-composer(args: ["install"])
-// If the error mentions APP_KEY:
-artisan(args: ["key:generate"])        // or framework's equivalent
-// If the error mentions the database file / connection:
-//   sqlite: env_setup() auto-creates database/database.sqlite
-//   mysql/postgres: service_control(action: "start", name: "<service>")
-setup()                                // re-runs pending migrations + setup steps
-status()                               // DNS / nginx / FPM container health at a glance
-doctor()                               // full diagnostic if nothing above explains it
-```
-
-**Install a package that needs publish + migration:**
-```
-composer(args: ["require", "spatie/laravel-permission"])
-artisan(args: ["vendor:publish", "--provider=Spatie\\Permission\\PermissionServiceProvider"])
-artisan(args: ["migrate"])
-```
-
-**Xdebug coverage for phpunit/pest (mode swap, no action: "off" needed between modes):**
-```
-xdebug(action: "on", version: "8.4", mode: "coverage")
-vendor_run(name: "pest", args: ["--coverage"])
-xdebug(action: "off", version: "8.4")
-```
-
-**Back up before a risky migration:**
-```
-db_export(output: "/tmp/myapp-backup.sql")
-artisan(args: ["migrate"])
-// on failure: db_import(file: "/tmp/myapp-backup.sql")
-```
-
-**Add a Laravel Horizon worker (custom framework worker):**
-```
-framework_add(name: "laravel", workers: {
-  "horizon": {"label": "Horizon", "command": "php artisan horizon", "restart": "always"}
-})
-worker(action: "start", site: "myapp", worker: "horizon")
-```
-
-**Set up a custom container site (Node.js, Python, Go, etc.):**
-
-1. Create a `Containerfile.lerd` in the project root (do NOT add WORKDIR or COPY — lerd volume-mounts the project directory at its host path and sets --workdir automatically):
-```dockerfile
-FROM node:20-alpine
-RUN npm install -g nodemon
-CMD ["npm", "run", "start:dev"]
-```
-
-   > **Hot-reload on macOS**: inotify events do not fire across Podman Machine's virtiofs mount. Use polling: nodemon needs `--legacy-watch`, Vite needs `server.watch.usePolling: true`, webpack needs `watchOptions: { poll: 1000 }`.
-
-2. Write `.lerd.yaml` with the container section (no MCP tool for this — write the file directly or run `lerd init`):
-```yaml
-domains:
-  - myapp
-container:
-  port: 3000
-services:
-  - mysql
-  - redis
-```
-
-3. **Configure env BEFORE linking.** The container starts immediately on `site_link`. Lerd services are reachable by container name on the `lerd` network:
-```
-DB_HOST=lerd-mysql     # or lerd-postgres (port 5432)
-DB_PORT=3306
-DB_USERNAME=root       # postgres for postgres
-DB_PASSWORD=lerd
-REDIS_HOST=lerd-redis
-REDIS_PORT=6379
-```
-
-4. Link:
-```
-site_link()            // builds image, creates container, generates nginx vhost
-```
-
-The `container.port` field is required. `container.containerfile` defaults to `Containerfile.lerd`. Workers defined in `custom_workers` exec into the custom container.
-
-## .lerd.yaml Reference
-
-`.lerd.yaml` is the per-project config file, committed to the repo. `lerd link` and `lerd init` apply it automatically.
-
-### PHP site fields
-
-| Field | Description |
-|-------|-------------|
-| `domains` | Site hostnames without TLD (e.g. `[myapp, api]`). First is primary. |
-| `php_version` | PHP version for this project (e.g. `"8.4"`) |
-| `node_version` | Node version (e.g. `"22"`) |
-| `framework` | Framework name (e.g. `laravel`, `symfony`, `wordpress`) |
-| `secured` | `true` to enable HTTPS |
-| `request_timeout` | nginx request timeout in seconds (default 60). Raises `fastcgi_read/send_timeout` for FPM sites or `proxy_read/send_timeout` for proxy/container sites — for deliberately long-running requests. Overrides the global `nginx.request_timeout` |
-| `services` | Services to start (e.g. `[mysql, redis]`) |
-| `workers` | Active worker names (e.g. `[queue, schedule]`) — auto-synced by start/stop |
-| `app_url` | Override for APP_URL in `.env` |
-| `env_overrides` | Map of env var names → templated values written into per-worktree `.env` (not the parent's; not applied on `lerd setup`). Placeholders: `{{domain}}`/`{{scheme}}`/`{{site}}`/`{{branch}}`/`{{parent}}`, or plain strings. `APP_URL` here beats the default rewrite. `DB_DATABASE` is owned by isolation when on |
-
-### Custom container fields
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `container.port` | yes | | Port the app listens on inside the container |
-| `container.containerfile` | no | `Containerfile.lerd` | Path to the Containerfile (relative to project root) |
-| `container.build_context` | no | `.` | Build context directory |
-| `container.target` | no | (last stage) | Stage to build in a multi-stage Containerfile, passed as `podman build --target` |
-| `custom_workers` | no | | Worker definitions — see below |
-| `domains` | no | | Same as PHP sites |
-| `secured` | no | | Same as PHP sites |
-| `request_timeout` | no | 60 | Same as PHP sites — sets `proxy_read/send_timeout` for the container |
-| `services` | no | | Same as PHP sites |
-
-When `container` is present, `php_version`, `framework`, and `node_version` are ignored — the container defines its own runtime.
-
-### custom_workers fields
-
-Each entry under `custom_workers` is a name-to-config map. Works for both PHP and custom container sites.
-
-```yaml
-custom_workers:
-  queue:
-    label: Queue Worker
-    command: node dist/queue.js
-    restart: always
-  cron:
-    label: Cron
-    command: node dist/cron.js
-    restart: on-failure
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `label` | no | Display name in the UI |
-| `command` | yes | Shell command to run inside the container |
-| `restart` | no | `always` (default) or `on-failure` |
-| `schedule` | no | systemd OnCalendar expression for cron-style workers (e.g. `minutely`) |
-| `conflicts_with` | no | List of worker names to stop before starting this one |
-| `host` | no | `true` runs on the host via fnm instead of in the FPM container. For Node tools that need direct filesystem access for HMR (Vite, Tailwind watcher, etc.) |
-| `per_worktree` | no | `true` lets the worker run independently per git worktree under `lerd-<wname>-<site>-<wt>`. Required for worktree auto-start |
-| `replaces_build` | no | `true` declares that, while running, the worker provides the asset manifest. `lerd worktree add` skips the static `npm run build` step when this worker is opted into |
+## Lerd, a local PHP development environment
+
+This project runs on **lerd**, a Podman-based PHP development environment. It is framework-agnostic: Laravel, Symfony, WordPress, Drupal, Magento, CakePHP and any custom framework are all driven by a framework definition (YAML), never by lerd hardcoding a framework's name. The `lerd` MCP server is available — use it to manage the environment without leaving the chat.
+
+The MCP surface is **twelve grouped tools**, each driven by an `action` argument: `site`, `service`, `db`, `env`, `runtime`, `worker`, `exec`, `framework`, `diag`, `logs`, `worktree`, `workspace`. Always pass `action`. Most actions also accept an optional `path` that defaults to the directory the assistant was opened in (then `LERD_SITE_PATH` if set), so you can usually omit it. Start by calling `site` with `action: "list"` to discover sites.
+
+### Architecture
+
+- PHP runs in Podman containers named `lerd-php<version>-fpm` (e.g. `lerd-php84-fpm`); each container includes composer and node/npm; the PHP version is resolved from `.lerd.yaml` → `.php-version` → `composer.json` `require.php` constraint (matched against installed versions) → global default
+- Nginx routes `*.test` domains to the correct PHP-FPM container
+- Services (MySQL, Redis, PostgreSQL, etc.) and custom services run as Podman containers via systemd quadlets
+- Node.js versions run through a version manager, fnm (bundled, fetched on demand) or user nvm (declining managed Node picks nvm, switched with `node:manager`; nvm keeps PATH, fnm uses shims); per-project version via a `.node-version` file. The **package manager** is the project's, not lerd's: a `packageManager` pin in `package.json` wins, then the lockfile (`pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, `bun.lock*` → bun, else npm). pnpm and yarn run through corepack, and installs use the manager's frozen-lockfile mode (`pnpm install --frozen-lockfile`, `yarn install --immutable`, `npm ci`). Never assume `npm run dev`/`npm ci` — the worker command and the setup steps follow the detected manager
+- Framework workers (queue, schedule, reverb, horizon, messenger, vite, etc.) run as systemd user services named `lerd-<worker>-<sitename>`; commands are defined per-framework in YAML; Horizon is auto-detected from `composer.json` and replaces the queue toggle; Laravel ships with a `vite` host worker that runs the project's dev script on the host for HMR, through whichever package manager the project pins; workers and setup commands support optional `check` (`file` or `composer`) for conditional visibility; workers with `conflicts_with` auto-stop conflicting workers on start. Per-worker flags: `host: true` (runs on the host instead of the FPM container, for HMR-sensitive Node tools), `per_worktree: true` (worker runs independently per worktree under `lerd-<worker>-<site>-<branch>`), `replaces_build: true` (provides the asset manifest while running, so a worktree add skips the static build)
+- Custom workers can be added per-project (`.lerd.yaml` `custom_workers`) or globally (`~/.config/lerd/frameworks/<name>.yaml`); use the `worker` tool's `add`/`remove` actions — both survive framework store updates
+- Framework setup commands (one-off bootstrap steps like migrations, storage links) are defined in the framework YAML and shown by `framework` `action: "setup"`; Laravel has built-in storage:link/migrate/db:seed; custom frameworks can define their own
+- Service version placeholders (`{{mysql_version}}`, `{{postgres_version}}`, `{{redis_version}}`, `{{meilisearch_version}}`) are available in framework env vars and resolved from the service image tag at env-setup time
+- **Custom containers**: non-PHP sites (Node.js, Python, Go, etc.) can define a `Containerfile.lerd` and a `container:` section in `.lerd.yaml` with a port; lerd builds a per-project image, runs it as `lerd-custom-<sitename>`, and nginx reverse-proxies to it; the project directory is volume-mounted at its host path with `--workdir` set automatically — do NOT add `WORKDIR` or `COPY` to the Containerfile; workers exec into the custom container; services are accessible by name on the shared `lerd` Podman network; **hot-reload file watchers must use polling on macOS** (inotify does not fire across Podman Machine's virtiofs mount) — nodemon: `--legacy-watch`, Vite: `server.watch.usePolling: true`, webpack: `watchOptions: { poll: 1000 }`
+- **Custom-image PHP sites (custom-FPM)**: a PHP project can define a `Containerfile.lerd` (must build `FROM lerd-php<ver>-fpm:local`) plus a `container:` section with **no port**; lerd builds a per-site image (`lerd-custom-<site>:local`), runs a dedicated FPM container `lerd-cfpm-<site>`, and serves it by fastcgi instead of the shared `lerd-php<ver>-fpm`. It is a normal PHP site otherwise, with xdebug, dumps, the profiler, `lerd shell` and every worker running in the per-site container. The PHP version is fixed by the `FROM` line (the UI version selector is read-only); `lerd rebuild` rebuilds the image. Same key as custom containers, the port is the discriminator: with one it is a reverse-proxied non-PHP app, without one a fastcgi PHP image. `runtime` for these reports `fpm-custom`.
+- Git worktrees automatically get a `<branch>.<site>.test` subdomain (deep `*.<branch>.<site>.test` wildcard cert + nginx `server_name` on secured sites); `vendor/`, `node_modules/`, `.env` are seeded from the main checkout. `.lerd.yaml` `env_overrides` declares templated env vars (`{{domain}}`, `{{scheme}}`, `{{site}}`) layered on the default `APP_URL` rewrite — for multi-tenant apps (per-branch cookies, signed-URL hosts, tenant routing)
+
+### DNS modes
+
+Lerd has two install-time DNS modes recorded in `~/.config/lerd/config.yaml`:
+- **Managed (default)**: `dns.enabled: true`, `dns.tld: test`. Sites at `*.test` via lerd-dns + mkcert; `site` `tls_enable` works.
+- **Disabled**: `dns.enabled: false`, `dns.tld: localhost`. Sites at `*.localhost` via RFC 6761; no mkcert CA, TLS toggling unavailable.
+
+Read `diag` `action: "status"` for `dns.tld` and `dns.enabled` instead of assuming `.test`; do not propose `tls_enable` when `dns.enabled` is false.
+
+### MCP tools
+
+Twelve grouped tools, each selecting behaviour via `action`.
+
+#### `site` — sites and their configuration
+Actions: `list` (discover sites — CALL FIRST), `link`, `unlink`, `domain_add`, `domain_remove`, `group_assign`, `group_unassign`, `group_label`, `group_db`, `group_list`, `tls_enable`, `tls_disable`, `tls_renew`, `php`, `node`, `pause`, `unpause`, `restart`, `rebuild`, `runtime`, `nginx_read`, `nginx_write`, `nginx_reset`, `park`, `unpark`.
+- `link` registers a directory; non-PHP sites need `.lerd.yaml` `container.port` + a Containerfile first, or they register as PHP (wrong)
+- `link` runs `lerd link` and returns its output verbatim, so read the reply. It will NOT start a `proxy.command` dev server (`command not approved`); ask the user to run `lerd link --yes`
+- `domain_*` take a domain without the `.test` TLD; you can't remove the last domain
+- `group_*` nest a secondary site under a main's subdomain (one level deep): they identify the secondary by `path` (defaults to cwd), not by `site`; `group_assign` with `main` + `label` (+ optional `share_db`), `group_db` = share|separate
+- a group secondary follows its main's HTTPS: `group_assign` under a secured main secures the secondary, `tls_enable` on a main secures its secondaries too, and `tls_disable` on a secondary is refused while its main is secured (the main's `*.<main>` wildcard would answer the subdomain and serve the main's app). Disable the main's TLS first
+- certificates renew themselves before they expire; `tls_renew` forces it by hand for one site
+- `php`/`node` take `version`; pass `branch` to pin the override on a worktree's checkout
+- `runtime` switches `fpm` ↔ `frankenphp` (`worker: true` enables frankenphp worker mode)
+- `nginx_write` saves a custom override (runs `nginx -t`, backs up, reloads); `branch` targets a worktree, `scope` picks the file: `server` (default) sits at the end of the server block, `location` inside the block serving the site, the only place a `fastcgi_param` or `proxy_set_header` override takes effect
+- `park` registers a parent dir and auto-registers every PHP project under it; `unpark` reverses it (project files kept)
+
+#### `service` — built-in & custom services
+Actions: `start`, `stop`, `restart`, `pin`, `unpin`, `update`, `rollback`, `migrate`, `remove`, `reinstall`, `add`, `expose`, `port`, `env`, `config_read`, `config_write`, `config_restore`, `config_reset`, `config_list_backups`, `preset_list`, `preset_search`, `preset_install`, `check_updates`, `entities`, `entity_action`.
+- `update` pulls a newer image (safe, in-strategy); `migrate` dumps + restores across a cross-strategy upgrade; `reinstall` with `reset_data: true` wipes data and reprovisions; `remove` with `remove_data: true` renames the data dir aside. Both wipes snapshot every database first (`pre-remove-<ts>` / `pre-reset-data-<ts>`, restore with `db` `restore` + `all_databases`): the renamed data dir only reads back under the image that wrote it, so the dump is the recovery path. A snapshot that fails stops the wipe; `no_snapshot: true` goes ahead without one
+- `preset_install`, `update`, `migrate`, `rollback` and `reinstall` disclose an image they would fetch instead of fetching it: the reply names it and its size, nothing is downloaded, and a repeat with `confirm: true` goes ahead. Relay the size first, it is the user's bandwidth. An image already on the machine is never disclosed
+- `stop` marks the service paused — `lerd start` skips it until started again; `pin` keeps it always running
+- `add` registers a custom OCI service (`depends_on` wires dependencies, `init: true` for mysql/mariadb); prefer `preset_install` for anything in `preset_list` (phpmyadmin, pgadmin, mongo, mongo-express, selenium, stripe-mock, mysql, mariadb…)
+- `preset_list` returns the installable presets with the metadata each one declares: `category` (the discovery heading), `icon`, and `admin_for` — the services this preset's admin UI administers, which is **not** `depends_on`. phpMyAdmin depends on mysql but administers mariadb too, and RedisInsight administers valkey without depending on it. To answer "which dashboard administers this database", read `admin_for`, not `depends_on`. `preset_search` queries the store by `name` for presets that are not bundled locally
+- `env` returns the recommended `.env` connection keys; `expose` publishes an extra `host:container` port
+- `port` moves the service's primary published host port (`published_port`, or `reset: true` for the default); it stays bound to 127.0.0.1, the container-internal port is unchanged, and a host-proxy site that points at the old port is realigned automatically
+- `entities` lists what a service holds that is not a database: the kinds its preset declares (RustFS buckets today, more later), each kind's rows and the actions it supports. Databases have their own tool, so they are not repeated here. `entity_action` runs one of those declared actions (`kind`, `entity`, `entity_action`); export and import stream a file and stay on the CLI and the dashboard
+- `config_*` read/write/restore/reset a service's runtime tuning override
+
+#### `db` — databases
+Actions: `list`, `set`, `move`, `create`, `export`, `import`, `snapshot`, `snapshots`, `restore`, `snapshot_delete`, `extension_list`, `extension_add`.
+- `list` reports an engine's databases with sizes; `service` picks the engine, else it resolves from the project. No introspect command, nothing to report
+- `set` picks the project DB (`database`: sqlite, mysql, postgres, or a family alternate like mariadb / postgres-pgvector / postgres-timescaledb / mysql-5-7); persists to `.lerd.yaml`, writes the keys the framework declares for that engine, starts the service, creates the DB + `_testing`. sqlite is a wiring the framework declares, not a service: nothing is installed or started and it is not among the site's services, so never report it as stopped or missing. Moving between engines clears the framework's cache, which otherwise serves errors from definitions built against the old database
+- `move` migrates sites between two installed same-family services (`from`/`to`, `sites: [...]` or `all: true`) and repoints each `.env`; source data is left intact
+- `create`/`export`/`import` auto-detect service and database; pass `service` to override. `import` drops a hosted provider's ownership/DEFINER statements (which can never apply here) and creates any extension the dump's types need; pass `fresh: true` to empty the database first so a dump replaces what is there instead of colliding with it. What an engine can list and act on is declared in its preset, so this is not a mysql/postgres-only set
+- `extension_list`/`extension_add` are postgres-only. An `import` already creates whatever extension the dump's types reach for, so use these to see what the engine offers and what the database has, or to add one (`extension: postgis`) before any dump arrives
+- `snapshot`/`snapshots`/`restore`/`snapshot_delete` are named, restorable snapshots (MySQL/MariaDB/PostgreSQL); `restore` is destructive; `all_databases` covers the whole service
+
+#### `env` — the file the framework actually reads
+Actions: `setup`, `check`, `override`.
+- `setup` configures services, DBs, APP_KEY and APP_URL; on a fresh Laravel clone call `db` `set` first to move off sqlite, then `env setup`, then ALWAYS `framework setup` or migrations never run
+- the file and format come from the framework definition, not from an assumption of dotenv: a `.env`, WordPress's `wp-config.php` constants, a returned PHP array (Magento's `env.php`, CakePHP's `app_local.php`) or `$var[...]` assignments (Drupal's `settings.php`). Only changed statements are rewritten, so comments and hand edits survive, and a read-only settings file is unhardened for the write and restored after. Never hand-edit these to wire a service, and never assume Laravel's `DB_CONNECTION`/`DB_DATABASE` mean anything on a project that does not declare them
+- `check` compares `.env` against `.env.example`. A key a dotenv file sets twice is a `site_doctor` finding, not an error here: lerd reads the first and Symfony reads the last, so the two disagree silently until someone picks one
+- `override` manages the personal, gitignored `.env.lerd_override` (its `set` KEY=VALUE win over lerd defaults; `LERD_EXTERNAL_SERVICES=<svc,svc>` marks vars lerd writes but won't start)
+
+#### `runtime` — PHP/Node versions & extensions
+Actions: `versions`, `node_install`, `node_uninstall`, `node_manager`, `php_list`, `ext_list`, `ext_add`, `ext_remove`, `ports_list`, `ports_add`, `ports_remove`, `ini_read`, `ini_write`, `ini_reset`.
+- `ext_add`/`ext_remove` change one declared set applying to EVERY PHP version, so a site keeps its extensions across a version change. They rebuild one version's FPM container now (slow); others rebuild on next use. `ext_add` accepts `apk_deps` for extra Alpine build packages
+- `ext_list` reports the declared set plus, per version: has it, predates the set (rebuild fixes), or cannot load it (rebuild won't). Never assume a declared ext is present: `mongodb` needs 8.1+, 7.4/8.0 are Alpine 3.16
+- `node_manager` with no argument reports the version manager lerd drives, whether nvm is present and whether lerd manages Node at all; with `manager: fnm|nvm` it switches, which also rewrites the PATH shims and regenerates host workers
+- `php_list` sets `base_update` when the published base image a version was built from has been republished (an upstream PHP or Alpine fix); `lerd php:rebuild <version>` picks it up. 8.6 is an opt-in prerelease tier, FPM only, fetched explicitly like the 7.4/8.0 legacy one
+- `ports_add`/`ports_remove`/`ports_list` publish extra host ports on a PHP version's shell (FPM) container so a process started in `lerd shell` is reachable at `localhost:PORT`. `ports_add` takes `host` and optional `container` (defaults to `host`); a busy host port shifts to the next free one. Per version and independent, loopback-bound (follows `lan:expose`), restarts that version's FPM. Prefer host-proxy or a worker+proxy for a single site. CLI: `lerd php:ports add/remove/list [--php version]`
+- `ini_read`/`ini_write`/`ini_reset` edit php.ini: pass `version` for a per-version file, or `shared: true` for the shared file applied to every version. The shared file loads below the per-version one, so a per-version key still wins and an unknown key on some version is ignored (not fatal). Prefer shared for a setting you want everywhere, so a version change never drops it. `ini_write` takes full `content`, backs up, and restarts the affected FPM containers. CLI: `lerd php:ini [version|shared]`
+- `ext_add` rebuilds the version's image, so a missing base image is disclosed the same way and waits for `confirm: true`
+- **extra Alpine packages**: `lerd php:pkg add/remove/list <packages>` (CLI) bakes runtime apk packages (CLI tools, libs) into every FPM image, saved in config under `php.packages` and re-applied on every rebuild, so they survive `php:rebuild` and base image updates. One declared set applies to every PHP version. Layered onto the shared image, not the published base.
+- **Pest browser testing (CLI-only)**: `lerd pest:browser install|doctor|remove [version]` sets up `pestphp/pest-plugin-browser` inside the FPM container by baking Alpine's musl chromium and Xvfb into the images. Chromium only, and current PHP versions only (the 7.4/8.0 legacy tier is rejected). Needs the `playwright` npm package first; re-run install after bumping it. Tests then run through the normal `lerd test`/`lerd pest`; `--headed` works too, on a virtual Xvfb display rather than a visible window.
+- **bun**: lerd never installs or version-manages bun. On the host, JS install/dev/build run through bun when the project is a bun project (its lockfile or `bunfig.toml`) or when Node is unmanaged, no system Node exists, and bun is present. CLI-only: `lerd node:manage`/`node:unmanage` opt in or out of lerd-managed Node (unmanage drops fnm versions, never a user's nvm ones), `lerd js:runtime [bun|node|auto]` pins one site's runtime, and `lerd php:bun install|update|version` manages an in-container bun for `lerd shell`. These are host operations, not container exec actions.
+
+#### `worker` — background workers
+Actions: `list` (CALL FIRST), `start`, `stop`, `add`, `remove`, `health`, `heal`, `mode_get`, `mode_set`, and the framework workers `queue_start`, `queue_stop`, `horizon_start`, `horizon_stop`, `reverb_start`, `reverb_stop`, `schedule_start`, `schedule_stop`, `stripe_start`, `stripe_stop`, `stripe_config`.
+- call `list` to discover a site's workers before `start`; pass `branch` to target a per-worktree unit
+- use `horizon_*` instead of `queue_*` when laravel/horizon is installed (mutually exclusive); `queue_start` needs Redis running when `QUEUE_CONNECTION=redis`
+- `list` reports each worker's tunable `options` (name, definition default, project value); `start`/`queue_start` take them back as `options: ["name=value"]`, persisted to `.lerd.yaml`, so pass one only to change it; an undeclared name is refused
+- `add` saves a custom worker to `.lerd.yaml` (or the user overlay with `global: true`); does not auto-start
+- `health` reports unhealthy units (read-only); `heal` resets and restarts them (`unit` for one, omit for all); `mode_get` reports the macOS worker runtime, `mode_set` switches it (`mode`: exec|container)
+- a worker's health `state` is one of `failed` (the unit died), `expected-but-stopped` (it should be running and isn't), or `unreachable` — the unit is happily active but the server it publishes no longer accepts connections, a dev server that wedged without exiting. All three are heal-able; `heal` restarts the unit. Per-worktree units (`lerd-<worker>-<site>-<branch>`) are covered by the same pass, so a dead per-worktree Vite heals like any other. A worker with a `schedule` is a oneshot driven by a timer and is idle between ticks by design, which is healthy
+- Stripe secret is read from `.env` (STRIPE_SECRET / STRIPE_SECRET_KEY / STRIPE_API_KEY); `stripe_config` sets webhook_path / secret_env_key in `.lerd.yaml`
+- **Auto-reload (CLI-only)**: `lerd horizon:reload [on|off]` and `lerd octane:reload [on|off]` (FrankenPHP worker mode) restart workers on file changes; both need the project's `chokidar` npm package
+- **Idle-suspend (CLI-only)**: `lerd idle on/off` toggles activity-driven suspension globally; suspended workers stop after the idle timeout (`lerd idle timeout <dur>`) and resume on the next request/CLI/MCP/file-save. `lerd idle pin/unpin <site>` exempts a site; `lerd idle status` reports policy and last-active. A worker shown as suspended is healthy, not failed, so do not `heal` it
+
+#### `exec` — run tooling in the PHP-FPM container
+Actions: `artisan` (Laravel), `console` (other frameworks), `composer`, `vendor_bins`, `vendor_run`, `commands_list`, `commands_run`, `command_add`, `command_remove`.
+- `artisan`/`console`/`composer` take `args` (array); tinker must use `--execute=<code>` for non-interactive use
+- `vendor_run` is the right way to run project tooling (pest, phpunit, pint, phpstan, rector) — call `vendor_bins` first to discover what's installed, then `vendor_run` with `bin` + `args`; prefer it over `composer exec`. `lerd cpx <package>` (CLI-only) runs a Composer package's binary without adding it to the project
+- `commands_*`/`command_*` list, run, add and remove the on-demand commands in a site's `.lerd.yaml` `commands:` block; `commands_run` needs `force: true` for confirm-gated commands
+- **composer over git SSH (CLI-only)**: when `composer` needs a private repo reachable only over SSH, `lerd auth ssh` starts a shared ssh-agent container and loads the host's `~/.ssh/id_*` (or named keys) so passphrase-protected keys work in the FPM container; `lerd auth ssh --list` shows loaded keys, `--remove` flushes them. Keys live only in agent memory and clear on machine restart
+
+#### `framework` — framework definitions & scaffolding
+Actions: `list`, `add`, `remove`, `prune`, `search`, `update`, `project_new`, `setup`.
+- `add` with `name: "laravel"` merges custom workers/setup into the built-in framework; a worker or command gated on a composer package is declared once in the store as `packages/<vendor>-<name>.yaml` and merged onto the resolved definition, so it is not always in the framework's own file
+- `remove` refuses to drop a definition a linked site still uses (pass `force: true` to override); `prune` removes every definition no site uses
+- `search`/`update` use the community store; definitions auto-fetch on link, so `update` is the manual refresh (no `name` refreshes the catalogue and all installed definitions; with `name` it fetches that one, auto-detecting version from `composer.lock`)
+- `project_new` scaffolds a new project (absolute `path`, default laravel) from the definition the store publishes today, with `version` for an older major, refused when the store has none; follow with `site` `link` + `env` `setup`. `lerd setup --list-steps` prints a project's setup plan as JSON and `--step` runs the named ones, for driving setup piecemeal
+- `setup` runs the framework's post-install steps (migrations, storage:link…) — MANDATORY after `env setup` on new/cloned projects; idempotent
+
+#### `diag` — diagnostics & observability
+Actions: `status`, `doctor`, `doctor_fix`, `site_doctor`, `which`, `check`, `dns_diagnose`, `bug_report`, `analyze_queries`, `route_timing`, `optimize_route`, `dumps_recent`, `dumps_status`, `dumps_clear`, `dumps_toggle`, `profiler_toggle`, `profiler_status`, `profiler_clear`, `profiler_report`, `xdebug_on`, `xdebug_off`, `xdebug_status`.
+- `status` (DNS/nginx/FPM/watcher/tools health) and `doctor` (JSON findings, each tagged with a fix tier) are the first stops when something is broken; `dns_diagnose` walks the DNS chain
+- `doctor_fix` applies the safe (non-heavy, non-sudo) automatic repairs for environment findings; package installs, `lerd install`, and `lerd cleanup` stay manual
+- `site_doctor` runs framework-agnostic app-level checks for one site (env file, env drift, app key, composer/node dependency install + lock, `composer audit`/`npm audit`, PHP range, a `slow_routes` warning for routes whose p95 runs well above the site's typical time or over a second, plus the framework's own checks); pass `site` (name or domain) or `path`, defaults to cwd. A failing check carries a `severity` and, when one applies, a `fix` naming the command that resolves it — run that yourself (`exec`, or the named lerd command); site_doctor itself is read-only. Host-side fixes (installing or starting a service the site declares, rewriting a drifted nginx vhost, repointing a project at the database it picked, creating a database its engine lacks, deleting units of workers the site no longer declares) belong to `lerd site:doctor --fix`, which the user runs. `slow_routes` is the exception: read from the watcher's timing snapshot, no command fix, profile the route instead (`profiler_toggle`)
+- reading logs lives in the `logs` tool (below), not here
+- `which` shows resolved PHP/Node/docroot/nginx for a site; `check` validates `.lerd.yaml`
+- debug bridge loop: `dumps_toggle` (enable) → `dumps_clear` → hit the page → `analyze_queries` (N+1 / slow-query report with file:line) or `dumps_recent` (filter by site/branch/ctx/kind/since/limit)
+- `route_timing` returns the per-site response-time table: the typical (median) time and the routes whose p95 runs well above it (method, example path, p95, multiplier, samples), read from the watcher's snapshot of real traffic, no capture needed. `site` accepts either the site name or its domain, as do `analyze_queries`, `optimize_route`, and `dumps_recent`
+- `optimize_route` is the join: each slow route paired with the N+1 and slow-query findings captured against that same route (with the caller file:line), so you get the symptom and its cause in one call. Needs the query capture on (`dumps_toggle` enable) plus a few real hits. When the SPX profiler was on for the route's traffic, each slow route also carries a `profile` block, the top functions by exclusive wall time from the freshest capture, distilled to a few outliers (not the raw trace), so a CPU-bound route shows where its time went next to its queries
+- **optimizing a slow site**: don't read controllers to guess at N+1s, drive it from real traffic. `route_timing` to see which routes are slow → `dumps_toggle` (enable) and `profiler_toggle` (enable) → hit the slow route a few times → `optimize_route` to get its N+1/slow queries with file:line and, from the profiler, the top CPU functions behind it → fix the caller (eager-load, index, cache) or the hot function
+- **stay ahead of regressions**: after changing request handling or database code, enable dumps, hit the affected route and run `optimize_route` before moving on, and treat a new N+1 or `slow_routes` warning as work to finish rather than noise. Timing is a live in-memory signal, so a route you fixed clears itself; the durable catch is the `slow_route` push notification. Periodic checking belongs to the user's own scheduler, not to lerd.
+- `profiler_*` toggle the global SPX profiler and surface the flame-graph UI; `profiler_report` (site + `args`, e.g. `["artisan","app:heavy-report"]`) runs that command under SPX and returns a text flat profile, the top functions by wall time and call count, the CPU-bound analog of `analyze_queries` for when a slow route's cost is not in its queries (a reproducible CLI command, not a live HTTP request); `xdebug_*` control Xdebug on port 9003 (`mode` defaults to debug)
+- `bug_report` writes an anonymised diagnostic report for a GitHub issue
+- **disk cleanup (CLI-only)**: `lerd cleanup` reclaims podman disk from orphaned lerd images (`--dry-run` to preview, `--deep` for the aggressive tier); a daily safe-tier sweep plus post-rebuild/service-change reaping runs automatically, toggled with `lerd cleanup auto on|off|status`
+
+#### `logs` — read logs from any source, filtered
+Actions: `sources`, `fetch`. Debug without opening files by hand.
+- `sources` lists every queryable source for the site plus shared infra: `app:<file>` (framework log files), `fpm`, `worker:<name>` (queue/horizon/schedule/custom), and the globals `nginx`, `dns`, `watcher`, `ui`, services, `php<ver>`. Call it first to learn the names
+- `fetch source=<name>` reads one source. Filter with `grep` (regex, falls back to literal substring), `since`/`until` (relative like `15m`/`1h`/`2h30m`, or a timestamp), `level` (app logs only: error/warning/info/debug), and `lines` (default 50)
+- streaming is polling: every `fetch` returns an opaque `cursor`; call again with `since=<cursor>` (or `cursor=<cursor>`) to get only the new lines. The cursor format differs per backend, so treat it as opaque and echo it back
+- entries come back chronological (oldest first). Raw logs with no timestamps ignore `since`/`level` and just return the last N; a not-running container returns partial output, not an error
+
+#### `worktree` — git worktrees
+Actions: `list`, `add`, `remove`, `wait`, `db_isolate`, `db_share`.
+- `add` installs deps and offers an asset-worker / build-step prompt; secured sites get `*.<branch>.<site>.test` wildcard cert SANs + nginx `server_name` automatically. It waits for setup and reports `provisioned` (`false` + note means still running, not failed; `timeout_seconds` default 300)
+- `wait` is that readiness check alone, for a worktree made with plain `git worktree add`. **Never** judge readiness from the tree: `node_modules/` exists from the first extracted package and composer fills *existing* `vendor/<org>/` dirs, so both read as finished mid-install, and racing the watcher is how `vendor/` ends up with no `autoload.php`
+- `db_isolate` gives a worktree its own database (seed via `source`: empty|main|<branch>); `db_share` points it back at the main; `remove` keeps an isolated DB unless `keep_db: false`
+- a framework definition can declare what its worktrees need (an isolated database, what it is cloned from, console commands to run once it is in place), so `add` does that work rather than leaving it to be run by hand
+- request timing is recorded per worktree; pass `branch` to `route_timing`, `optimize_route` and `dumps_recent` to read one branch's traffic
+
+#### `workspace` — group sites for display
+Actions: `list`, `create`, `rename`, `delete`, `assign`, `move`.
+- a workspace is a **display-only** bucket of sites, shown in the dashboard sidebar and the TUI. It never touches nginx, domains, certificates or `.env`. This is not the same thing as the `site` tool's `group_*` actions, which nest a real site under another's subdomain and regenerate vhosts and certs — reach for `group_*` when a site should be served at `<label>.<main>.test`, and for `workspace` when the user just wants their site list organised
+- `assign` takes `sites` (names or domains) and a `workspace`, creating it if new; `workspace: "none"` ungroups them. `move` reorders a workspace with a zero-based `position`
+- `delete` drops the workspace and ungroups its members; no site is touched
+
+### Key conventions
+
+- Pass `action` on every tool; `path` is optional on most and defaults to the directory the assistant was opened in
+- Discover before acting: `site` `list` for sites, `worker` `list` for a site's workers, `service` `preset_list` before `preset_install`, `exec` `vendor_bins` before `vendor_run`
+- On a fresh Laravel clone (DB_CONNECTION=sqlite), call `db` `set` before `env` `setup` to choose a database deliberately, then run `framework` `setup`
+- **Domain conflicts on link**: a link drops a domain another site owns (reported in `warnings`) and registers the survivors, falling back to `<dirname>.<tld>`; `.lerd.yaml` is untouched. `domain_add` still hard-errors
+- **Custom APP_URL**: `env` `setup` writes `<scheme>://<primary-domain>`; override via `app_url` in `.lerd.yaml` (committed) or the per-machine `sites.yaml` entry, then re-run `env setup`
+- Built-in service hosts follow `lerd-<name>` (e.g. `lerd-mysql`, `lerd-redis`, `lerd-postgres`); default DB credentials are username `root`, password `lerd`
+- **Custom container sites** (Node.js, Python, Go, …) — mandatory order: (1) write a Containerfile (default `Containerfile.lerd`); (2) write `.lerd.yaml` with `container: {port: <N>}` (plus optional `domains`, `services`, `secured`); (3) configure the project's `.env` with service hosts (`lerd-mysql`, etc.) and start needed services via `service` `start`; (4) call `site` `link`. Never link before steps 1–3 or the site registers as PHP-FPM; if that happens, `site` `unlink`, write the files, then link again
+- Worker unit names follow `lerd-<worker>-<site>` (per-worktree: `lerd-<worker>-<site>-<branch>`)
+- **Opening a project (CLI-only)**: `lerd open` sends the site to the browser, `lerd code` the directory to the configured editor; inside a worktree both act on the checkout you are standing in
+- **lerd's own lifecycle is CLI-only**: no tool starts, stops or updates lerd; when it is down, hand the user `lerd start`
+- **Host tools (CLI-only)**: `diag` `status` reports Composer, fnm and mkcert against the versions lerd pins, and flags any that differ. Applying an update is `lerd tools:update`, and the optional tray applet is `lerd tray off|on`; neither has a tool here, so tell the user to run it
+- **Sharing a site is CLI-only and deliberate**: `lerd share` (ngrok, cloudflared, Expose, serveo, localhost.run, Pinggy) and the dashboard's share menu put a site on the public internet, the same menu's public share serves it through the user's own reverse proxy on a base domain they control instead of a tunnel service, and `lerd lan:expose` puts it on the local network. None is exposed here, so never claim you can share a site; hand the user the command and let them decide

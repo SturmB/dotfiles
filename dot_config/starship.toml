@@ -1,5 +1,7 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
+command_timeout = 2000
+
 format = """
 [](color_orange)\
 $os\
@@ -33,6 +35,14 @@ $time\
 $line_break$character"""
 
 palette = 'gruvbox_dark'
+
+# Raise the directory-scan timeout from the 30ms default so cold-cache scans
+# (first terminal after a reboot, or after btrfs metadata for $HOME is evicted)
+# don't warn. Even a WARM full read of the ~150-entry $HOME measures ~100ms here,
+# so 100 sat right on the boundary and lost the race on most cold opens. scan_timeout
+# is a ceiling, not a fixed wait — a fast scan returns early, so 500 only costs
+# time on a genuinely slow cold scan and never slows a normal prompt.
+scan_timeout = 500
 
 [palettes.gruvbox_dark]
 color_fg0 = '#fbf1c7'

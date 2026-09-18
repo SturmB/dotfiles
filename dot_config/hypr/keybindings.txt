@@ -48,6 +48,7 @@ SUPER + Ctrl + , | Toggle do-not-disturb
 SUPER + Alt + , | Toggle notification panel
 SUPER + Backspace | Toggle window transparency
 SUPER + Shift + Space | Toggle waybar
+SUPER + Shift + B | Restart waybar (auto-respawns + restarts tray apps)
 SUPER + Shift + T | Restart tray apps (after waybar restart/crash)
 SUPER + Ctrl + N | Toggle nightlight
 SUPER + Ctrl + I | Toggle idle prevention

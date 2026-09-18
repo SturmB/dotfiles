@@ -2,6 +2,12 @@ matches:
   - trigger: ";adr"
     replace: "2508 Elmo Place"
 
+  - trigger: ";cty"
+    replace: "Middletown"
+
+  - trigger: ";zip"
+    replace: "45042"
+
   - trigger: ";emp"
     replace: "sturm359@gmail.com"
 

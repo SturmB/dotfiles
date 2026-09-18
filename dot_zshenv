@@ -14,6 +14,6 @@ export _ZO_DOCTOR=0
 
 # Secrets (age-decrypted on apply into ~/.secrets, mode 600). Sourced here
 # rather than ~/.zshrc so non-interactive zsh invocations — e.g. Claude Code's
-# Bash tool in VS Code, which never loads ~/.zshrc — still get JIRA_API_TOKEN
-# and friends without an agent having to source the file itself.
+# Bash tool in VS Code, which never loads ~/.zshrc — still get personal API
+# credentials without an agent having to source the file itself.
 [[ -f "${HOME}/.secrets" ]] && source "${HOME}/.secrets"

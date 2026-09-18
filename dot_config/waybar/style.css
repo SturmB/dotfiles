@@ -199,7 +199,9 @@ button:hover {
     padding: 0 5px;
 }
 
-#keyboard-state > label.locked {
+/* Dim the *unlocked* (off) key so the active/locked key stays bright green
+   and reads as highlighted. Was on .locked, which dimmed the active key. */
+#keyboard-state > label:not(.locked) {
     background: rgba(0, 0, 0, 0.2);
 }
 
@@ -228,4 +230,28 @@ button:hover {
 
 #privacy-item.audio-out {
     background-color: #0069d4;
+}
+
+/* hyprwhspr dictation module — icon turns red while recording (from shipped
+   hyprwhspr-style.css). States: ready/stopped = inherit, recording = red, error = amber. */
+#custom-hyprwhspr {
+    border-top: 2px solid transparent;
+    border-bottom: 2px solid transparent;
+    transition: color 150ms ease-in-out, border-color 150ms ease-in-out;
+}
+
+#custom-hyprwhspr.recording {
+    color: #E75143;
+    border-bottom-color: #E75143;
+    font-family: monospace;
+    letter-spacing: 0.5px;
+}
+
+#custom-hyprwhspr.error {
+    color: #d97706;
+    border-bottom-color: #d97706;
+}
+
+#custom-hyprwhspr:hover {
+    opacity: 0.8;
 }

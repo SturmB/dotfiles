@@ -1,3 +1,9 @@
+{{/* Titan delegates runtimes outside global mise; other hosts retain provisioning. */}}
+{{ $globalTools := ne .chezmoi.hostname "titan" -}}
+{{ if hasKey . "miseGlobalTools" -}}
+{{ $globalTools = .miseGlobalTools -}}
+{{ end -}}
+{{ if $globalTools -}}
 [tools]
 {{ if ne .chezmoi.osRelease.id "ubuntu" -}}
 # On non-Ubuntu machines, mise compiles php from source. On Ubuntu, php is provided
@@ -13,6 +19,7 @@ php = { version = "8.5.7", postinstall = "~/.config/php/install-extensions.sh" }
 # machine installs the latest LTS automatically; move an existing machine forward
 # with `mise upgrade node` (deliberate, so an LTS major bump never lands mid-work).
 node = "lts"
+{{ end -}}
 {{ if ne .chezmoi.osRelease.id "ubuntu" }}
 [env]
 # Appends to default configure options via the plugin's override mechanism.
@@ -22,5 +29,9 @@ node = "lts"
 # those flags fail any 8.5 source build (and libc-client is gone from recent distros).
 PHP_CONFIGURE_OPTIONS = "--with-openssl --with-curl --with-zlib --with-readline --with-gettext --with-jpeg --with-png --with-pgsql --with-kerberos --with-ldap --with-sodium"
 # Prepend shared config dir; leading colon means "compiled-in dir + this dir"
+{{ if $globalTools -}}
 PHP_INI_SCAN_DIR = ":{{ .chezmoi.homeDir }}/.config/php/conf.d"
+{{ else -}}
+# Disabled with global mise runtimes: do not load old mise extension INIs into host PHP.
+{{ end -}}
 {{ end -}}

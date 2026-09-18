@@ -1,11 +1,14 @@
 [user]
-{{- if eq .profile "work" }}
-    name = Chris McGee
-    email = cpmcgee@intxlog.com
-{{- else }}
     name = Chris McGee
     email = chris@chrismcgee.info
-{{- end }}
+
+{{ if eq .profile "personal" }}
+[alias]
+    hdiff = -c core.pager=\"hunk pager\" diff
+    hshow = -c core.pager=\"hunk pager\" show
+[core]
+    pager = hunk pager
+{{ end }}
 
 [init]
     defaultBranch = main
@@ -22,9 +25,3 @@
 [credential "https://gist.github.com"]
     helper =
     helper = !/usr/bin/gh auth git-credential
-
-{{ if and .personal .work }}
-# Work repos under ~/dev/intxlog use the work identity
-[includeIf "gitdir:~/dev/intxlog/"]
-    path = ~/.gitconfig-work
-{{ end }}

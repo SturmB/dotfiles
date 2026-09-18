@@ -4,7 +4,7 @@ Managed with chezmoi. Review the first diff before applying: scripts install pac
 
 ## Bootstrap
 
-Authorize a per-machine GitHub SSH key and verify `git ls-remote git@github.com:SturmB/dotfiles.git HEAD`. Non-server profiles currently need the age identity at `~/key.txt` (mode 600), transferred privately over SSH.
+Authorize a per-machine GitHub SSH key and verify `git ls-remote git@github.com:SturmB/dotfiles.git HEAD`. Personal and stream profiles need the age identity at `~/key.txt` (mode 600), transferred privately over SSH; work and server profiles render no credentials.
 
 ```sh
 sh -c "$(curl -fsLS https://get.chezmoi.io)" -- -b "$HOME/.local/bin" init --ssh SturmB
@@ -19,10 +19,10 @@ Choose `stream` for Aurora. `init` does not clone over an existing Git source di
 
 ## Profiles
 
-- `personal`: personal and work tooling, work credentials, YNAB and OpenRouter.
-- `work`: work tooling and credentials, no personal API credentials.
+- `personal`: personal and development tooling, YNAB and OpenRouter; no former-employer credentials.
+- `work`: generic development tooling, no employer or personal API credentials.
 - `stream`: shared zsh/CLI and Claude configuration, Node/mise, personal Git/SSH, OpenRouter only. Preserve existing `.profile` and `.bashrc`; exclude work identity/snippets/agent workflows, PHP configuration, and (by default) Hyprland and clipboard-image helpers.
-- `server`: no API credentials or managed work SSH key. Retains the existing server shell behavior; this is not an exhaustive minimal-server profile audit.
+- `server`: no API credentials or employer SSH key. Retains the existing server shell behavior; this is not an exhaustive minimal-server profile audit.
 
 `hyprland` and `clipboardImage` in local chezmoi `[data]` are explicit optional capabilities. Defaults preserve CachyOS personal workstation behavior and disable them elsewhere. Existing configs without those keys get the same defaults; no config regeneration is required just to obtain the exclusions.
 

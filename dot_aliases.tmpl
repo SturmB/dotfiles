@@ -43,28 +43,8 @@ alias c="clear"
 alias dq='tmux kill-session'
 claude-review() { claude --dangerously-skip-permissions "/code-review $*"; }
 
-{{ if .work }}
-# ── Work: Nexus runtime switch (Sail ⇄ Lerd) ─────────────────────
-NEXUS_DIR="$HOME/dev/intxlog/nexus"
-nexus-sail() {
-    ( builtin cd "$NEXUS_DIR" || return 1
-      lerd pause nexus 2>/dev/null
-      systemctl --user stop lerd-vite-nexus lerd-reverb-nexus 2>/dev/null
-      cp .env.sail .env && echo "→ Nexus .env = Sail (http://localhost)"
-      cp .env.testing.sail .env.testing && echo "→ Nexus .env.testing = Sail"
-      sail up -d )
-}
-nexus-lerd() {
-    ( builtin cd "$NEXUS_DIR" || return 1
-      [ -f .env.lerd ] && [ -f .env.testing.lerd ] || { echo "missing .env.lerd / .env.testing.lerd"; return 1; }
-      sail down 2>/dev/null
-      cp .env.lerd .env && echo "→ Nexus .env = Lerd (https://nexus.test)"
-      cp .env.testing.lerd .env.testing && echo "→ Nexus .env.testing = Lerd"
-      lerd unpause nexus && lerd start
-      systemctl --user start lerd-vite-nexus lerd-reverb-nexus 2>/dev/null
-      echo "Open: https://nexus.test" )
-}
-{{ end }}
+
+
 
 {{ if .personal }}
 # ── Personal: StreamController recovery ──────────────────────────

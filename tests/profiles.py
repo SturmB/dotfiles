@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert 'intxlog' not in render('dot_gitconfig.tmpl')
         if profile == 'personal':
             assert '.config/hypr/hyprland.lua' in managed
-            assert '.gitconfig-work' in managed
+            assert '.gitconfig-work' not in managed
             assert '.local/bin/edit-clipboard-image' in managed
         if profile == 'work':
             assert '.config/php/conf.d/99-custom.ini' in managed
@@ -42,6 +42,42 @@ with tempfile.TemporaryDirectory() as tmp:
         if profile == 'server':
             assert '.profile' in managed and '.bashrc' in managed
             assert '.ssh/id_ed25519_iel' not in managed
+        import tomllib
+        zshrc = render('dot_zshrc.tmpl')
+        subprocess.run(['zsh', '-n'], input=zshrc, text=True, check=True)
+        subprocess.run(['sh', '-n'], input=render('dot_profile.tmpl'), text=True, check=True)
+        assert zshrc.count('autoload -Uz compinit && compinit') == 1
+        assert zshrc.index('fpath=') < zshrc.index('autoload -Uz compinit')
+        assert zshrc.index('autoload -Uz compinit') < zshrc.index('source "$HOME/.bun/_bun"')
+        assert zshrc.index('export PATH="$BUN_INSTALL/bin:$PATH"') < zshrc.index('export PATH="$HOME/.local/share/lerd/bin:$PATH"')
+        assert zshrc.count('export PATH="$HOME/.local/share/lerd/bin:$PATH"') == 1
+        assert 'command -v starship' in zshrc and 'command -v zoxide' in zshrc
+        gitconfig = render('dot_gitconfig.tmpl')
+        assert ('pager = hunk pager' in gitconfig) == (profile == 'personal')
+        gitfile = tmp / 'rendered.gitconfig'
+        gitfile.write_text(gitconfig)
+        subprocess.run(['git', 'config', '--file', str(gitfile), '--list'], capture_output=True, check=True)
+        # Host defaults must not leak Titan's runtime opt-out to other machines.
+        for hostname in ['titan', 'another-host']:
+            override = json.dumps({'chezmoi': {'hostname': hostname, 'osRelease': {'id': distro}}})
+            text = run('--override-data', override, 'execute-template', '--file', str(src / 'dot_config/mise/config.toml.tmpl'))
+            mise = tomllib.loads(text)
+            assert bool(mise.get('tools')) == (hostname != 'titan')
+            assert ('PHP_INI_SCAN_DIR' in mise.get('env', {})) == (hostname != 'titan' and distro != 'ubuntu')
+            assert '--with-imap' not in mise.get('env', {}).get('PHP_CONFIGURE_OPTIONS', '')
+        print('PASS:', profile, 'shell syntax, completion ordering, Hunk isolation, mise host isolation')
+        forbidden_targets = {'.gitconfig-work', '.ssh/id_ed25519_iel', '.ssh/id_ed25519_iel.pub', '.config/atlassian/credentials', '.config/espanso/match/IEL.yml', '.claude/commands/guideline-triage.md', '.claude/commands/review-multi-prs.md'}
+        assert not forbidden_targets.intersection(managed)
+        for name in ['private_dot_ssh/private_config.tmpl', 'dot_gitconfig.tmpl', 'dot_aliases.tmpl', 'dot_zshrc.tmpl', 'run_once_before_install-packages.sh.tmpl']:
+            assert not re.search(r'intxlog|github.com-iel|JIRA_AUTH_TYPE|jira-cli|confcli|nexus-sail|nexus-lerd', render(name), re.I), name
+        for hostname in ['titan', 'another-host']:
+            override = json.dumps({'chezmoi': {'hostname': hostname, 'osRelease': {'id': distro}}})
+            script = run('--override-data', override, 'execute-template', '--file', str(src / 'run_onchange_after_install-mise-tools.sh.tmpl'))
+            assert ('mise install node' in script) == (hostname != 'titan')
+            if hostname == 'titan':
+                result = subprocess.run(['bash'], input=script, text=True, capture_output=True, check=True)
+                assert 'provisioning disabled' in result.stdout
+        print('PASS:', profile, 'IEL targets/consumers absent; disabled mise installer executes no installs')
         zprofile = render('dot_zprofile.tmpl')
         assert ('xdg-ubuntustudio-dirs.sh' in zprofile) == (distro == 'ubuntu')
         subprocess.run(['zsh', '-n'], input=zprofile, text=True, check=True)
@@ -52,7 +88,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert '/etc/xdg/xdg-plasma' in probe.stdout.split(':')
         rendered = render('private_dot_secrets.tmpl')
         names = set(re.findall(r'^export (\w+)=', rendered, re.M))
-        expected = {'stream': {'OPENROUTER_API_KEY'}, 'work': {'JIRA_API_TOKEN', 'COMPOSER_AUTH'}, 'personal': {'JIRA_API_TOKEN', 'COMPOSER_AUTH', 'YNAB_API_KEY', 'OPENROUTER_API_KEY'}, 'server': set()}[profile]
+        expected = {'stream': {'OPENROUTER_API_KEY'}, 'work': set(), 'personal': {'YNAB_API_KEY', 'OPENROUTER_API_KEY'}, 'server': set()}[profile]
         assert names == expected, (profile, names)
         for name in ['run_once_before_install-packages.sh.tmpl', 'run_onchange_after_install-php-apt.sh.tmpl', 'run_onchange_after_install-mise-tools.sh.tmpl']:
             subprocess.run(['bash', '-n'], input=render(name), text=True, check=True)

@@ -17,6 +17,7 @@
     "modules-right": [
         "idle_inhibitor",
         "pulseaudio",
+        "custom/hyprwhspr",
         // "network",
         "cpu",
         "memory",
@@ -183,6 +184,16 @@
             "default": ["", "", ""]
         },
         "on-click": "pavucontrol"
+    },
+    "custom/hyprwhspr": {
+        "format": "{}",
+        "return-type": "json",
+        "interval": 1,
+        "exec": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh status",
+        "exec-on-event": true,
+        "on-click": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh record",
+        "on-click-right": "/usr/lib/hyprwhspr/config/hyprland/hyprwhspr-tray.sh restart",
+        "tooltip": true
     },
     "custom/media": {
         "format": "{icon} {text}",

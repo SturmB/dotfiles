@@ -21,10 +21,6 @@ export PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.config/composer/vend
 # PHP coverage driver
 export XDEBUG_MODE=coverage
 
-{{ if .work -}}
-# Jira auth type (token comes from ~/.secrets)
-export JIRA_AUTH_TYPE=basic
-{{- end }}
 
 # Node / tool version managers
 {{ if or (eq .profile "work") (eq .profile "stream") -}}
@@ -41,6 +37,12 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
 {{- end }}
 {{/* server profile: no node/version managers */}}
 
+# Optional Bun installation; Lerd shims retain final PATH precedence below.
+if [ -d "$HOME/.bun" ]; then
+    export BUN_INSTALL="$HOME/.bun"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+fi
+
 # Lerd shims (php/composer/artisan → exec `lerd …` in-container).
 # MUST be prepended AFTER the mise block so it wins over mise's host PHP — otherwise
 # bare `php artisan migrate` runs host PHP and can't resolve Podman names like `lerd-postgres`.
@@ -51,8 +53,11 @@ export FZF_BASE="/usr/share/fzf"
 
 # Secrets: sourced from ~/.zshenv now, so they reach non-interactive shells too.
 
+# Register Lerd completions before the single compinit invocation.
+[ -d "$HOME/.local/share/zsh/site-functions" ] && fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
 # Completions
 autoload -Uz compinit && compinit
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 # Prompt
 command -v starship >/dev/null && eval "$(starship init zsh)"

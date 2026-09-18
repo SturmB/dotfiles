@@ -15,6 +15,12 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 #
 # mise config hash: {{ include "dot_config/mise/config.toml.tmpl" | sha256sum }}
 
+{{ $globalTools := ne .chezmoi.hostname "titan" -}}
+{{ if hasKey . "miseGlobalTools" -}}{{ $globalTools = .miseGlobalTools -}}{{ end -}}
+{{ if not $globalTools -}}
+echo "[mise] global runtime provisioning disabled for this host"
+exit 0
+{{ else -}}
 if ! command -v mise >/dev/null 2>&1; then
   echo "[mise] binary not found — skipping tool install (run_once bootstrap installs it on work/apt machines)"
   exit 0
@@ -32,3 +38,4 @@ if ! mise install; then
 fi
 
 exit 0
+{{ end -}}

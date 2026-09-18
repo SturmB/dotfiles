@@ -4,18 +4,21 @@
 
 # Preserve the monitor's current position — using `auto` re-runs Hyprland's
 # auto-layout and can swap monitor sides on multi-monitor setups with
-# explicit positions in hyprland.conf.
+# explicit positions in hyprland.lua.
 
-HYPRCONF="$HOME/.config/hypr/hyprland.conf"
+HYPRCONF="$HOME/.config/hypr/hyprland.lua"
 
 MONITOR=$(hyprctl activeworkspace -j | jq -r '.monitor')
 read -r CURRENT POS_X POS_Y < <(hyprctl monitors -j | jq -r --arg m "$MONITOR" '.[] | select(.name == $m) | "\(.scale) \(.x) \(.y)"')
 
-# This monitor's configured default scale = last comma-field of its
-# `monitor = NAME, ...` line in hyprland.conf (comment stripped).
-DEFAULT=$(grep -E "^[[:space:]]*monitor[[:space:]]*=[[:space:]]*$MONITOR," "$HYPRCONF" \
-    | head -1 | sed 's/#.*//' | awk -F',' '{gsub(/[[:space:]]/,"",$NF); print $NF}')
-DEFAULT=${DEFAULT:-1.0}
+# This monitor's configured default scale = the `scale = N` field of its
+# `hl.monitor({ output = "NAME", ... })` line in hyprland.lua.
+DEFAULT=$(grep -E "hl\.monitor\(\{.*output *= *\"$MONITOR\"" "$HYPRCONF" \
+    | head -1 | sed -E 's/.*scale *= *([0-9.]+).*/\1/')
+if [[ ! $DEFAULT =~ ^[0-9]+\.?[0-9]*$ ]]; then
+    notify-send "Monitor Scale" "Couldn't read the default scale for $MONITOR from ${HYPRCONF##*/}" -t 4000
+    exit 1
+fi
 
 # Cycle = a common set of scales plus this monitor's configured default,
 # deduped and sorted ascending. This guarantees the cycle always passes
@@ -34,5 +37,7 @@ for i in "${!SCALES[@]}"; do
     fi
 done
 
-hyprctl keyword monitor "$MONITOR,preferred,${POS_X}x${POS_Y},$NEXT"
+# Lua config syntax (Hyprland 0.55+). `hyprctl keyword` is rejected outright:
+# "keyword can't work with non-legacy parsers. Use eval."
+hyprctl eval "hl.monitor({ output = '$MONITOR', mode = 'preferred', position = '${POS_X}x${POS_Y}', scale = $NEXT })"
 notify-send "Monitor Scale" "$MONITOR → ${NEXT}x" -t 2000

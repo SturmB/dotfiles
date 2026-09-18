@@ -1,4 +1,10 @@
 # ~/.profile — on hosts whose login shell is sh (Synology), hop into bash for Starship.
+
+# User-installed commands, including Hermes Agent.
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
 {{ if .server -}}
 if [ -n "$PS1" ] && command -v bash >/dev/null 2>&1 && [ -z "$BASH_VERSION" ]; then
   exec bash
