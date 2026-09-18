@@ -93,10 +93,18 @@ with tempfile.TemporaryDirectory() as tmp:
         for name in ['run_once_before_install-packages.sh.tmpl', 'run_onchange_after_install-php-apt.sh.tmpl', 'run_onchange_after_install-mise-tools.sh.tmpl']:
             subprocess.run(['bash', '-n'], input=render(name), text=True, check=True)
         assert ('php8.5-cli' in render('run_onchange_after_install-php-apt.sh.tmpl')) == (profile == 'work')
+        settings = dest / '.claude/settings.json'
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text('{"permissions":{"allow":["Read"]}}')
+        settings.chmod(0o600)
+        run('apply', '--force', '--exclude=scripts', str(settings))
+        assert settings.stat().st_mode & 0o777 == 0o600
+        assert json.loads(settings.read_text())['permissions'] == {'allow': ['Read']}
+        print('PASS:', profile, 'Claude settings apply preserves private mode and local permissions')
         print('PASS:', profile, 'target filtering, credential selection, rendered script syntax')
     # The existing permission policy must survive the Claude settings merge.
     current = {'permissions': {'defaultMode': 'default', 'allow': ['Read']}, 'theme': 'dark'}
-    merged = json.loads(subprocess.run(['bash', str(src/'dot_claude/modify_settings.json')], input=json.dumps(current), text=True, capture_output=True, check=True).stdout)
+    merged = json.loads(subprocess.run(['bash', str(src/'dot_claude/modify_private_settings.json')], input=json.dumps(current), text=True, capture_output=True, check=True).stdout)
     assert merged['permissions'] == current['permissions']
     assert merged['theme'] == 'dark'
     assert merged['hooks']['PreToolUse']
