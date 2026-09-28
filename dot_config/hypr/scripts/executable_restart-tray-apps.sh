@@ -80,7 +80,7 @@ fi
 
 setsid arch-update --tray >/dev/null 2>&1 < /dev/null & disown
 setsid polychromatic-helper --autostart >/dev/null 2>&1 < /dev/null & disown
-setsid /usr/bin/jetbrains-toolbox --jvm-args=/home/kerban/.config/JetBrains/Toolbox/toolbox.vmoptions --minimize >/dev/null 2>&1 < /dev/null & disown
+setsid /usr/bin/jetbrains-toolbox --minimize >/dev/null 2>&1 < /dev/null & disown
 setsid /home/kerban/.config/hypr/scripts/pia-launch.sh >/dev/null 2>&1 < /dev/null & disown
 
 # StreamController is managed by its systemd unit. The unit's ExecStartPre uses

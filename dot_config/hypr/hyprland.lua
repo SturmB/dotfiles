@@ -95,9 +95,8 @@ hl.on("hyprland.start", function()
     -- switch. Watch Espanso's log and replace its stale worker after reconnect.
     hl.exec_cmd("~/.config/hypr/scripts/espanso-hotplug-watchdog.sh")
     -- Toolbox registers its tray item only at process startup; wait until Waybar
-    -- owns the watcher. Keep the mixed-monitor XWayland scale override local to
-    -- Toolbox so IDEs launched from it do not inherit a global JVM option.
-    hl.exec_cmd("bash -c 'until busctl --user status org.kde.StatusNotifierWatcher &>/dev/null; do sleep 0.1; done; exec /usr/bin/jetbrains-toolbox --jvm-args=/home/kerban/.config/JetBrains/Toolbox/toolbox.vmoptions --minimize'")
+    -- owns the watcher, then use the package launcher without geometry or JVM-scale overrides.
+    hl.exec_cmd("bash -c 'until busctl --user status org.kde.StatusNotifierWatcher &>/dev/null; do sleep 0.1; done; exec /usr/bin/jetbrains-toolbox --minimize'")
     hl.exec_cmd("steam -silent")
     -- Vesktop — wait for the StatusNotifierWatcher before launching. Vesktop's
     -- package launcher follows the Electron major version shipped by vesktop-bin;
@@ -548,33 +547,39 @@ hl.window_rule({
     max_size = { 300, 500 },
 })
 
--- JetBrains Toolbox — keep its default size and natural right-edge placement.
--- The process-local JVM option in the autostart command stabilizes XWayland
--- scaling across monitors. Toolbox settles partly over Waybar after each tray
--- restore, so make one delayed y-only correction; never resize, focus, or move
--- the cursor.
-hl.window_rule({
-    name  = "jetbrains-toolbox",
-    match = { class = "^jetbrains-toolbox$" },
-    float = true,
-})
-
-local toolboxMoveTimers = {}
+-- JetBrains Toolbox maps its XWayland window at x=-1031 and taller than DP-1's
+-- logical height even with all application and compositor overrides removed.
+-- After the client settles, apply one bounded fallback inside the MSI monitor.
+local toolboxPlacementTimers = {}
 hl.on("window.open", function(window)
     if window.class ~= "jetbrains-toolbox" then return end
 
     local address = window.address
-    toolboxMoveTimers[address] = hl.timer(function()
+    toolboxPlacementTimers[address] = hl.timer(function()
         local current = hl.get_window("address:" .. address)
         if current and current.mapped then
+            local msi = hl.get_monitor("DP-1")
+            if msi and msi.active_workspace then
+                hl.dispatch(hl.dsp.window.move({
+                    workspace = msi.active_workspace.id,
+                    silent = true,
+                    window = current,
+                }))
+            end
+            hl.dispatch(hl.dsp.window.resize({
+                x = 1024,
+                y = 1270,
+                relative = false,
+                window = current,
+            }))
             hl.dispatch(hl.dsp.window.move({
-                x = current.at.x,
-                y = 36,
+                x = 1336,
+                y = 40,
                 relative = false,
                 window = current,
             }))
         end
-        toolboxMoveTimers[address] = nil
+        toolboxPlacementTimers[address] = nil
     end, { timeout = 750, type = "oneshot" })
 end)
 
