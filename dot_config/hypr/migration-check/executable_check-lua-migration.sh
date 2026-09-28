@@ -176,9 +176,9 @@ else bad "Cachy-Update can race Waybar at login"; fi
 if command grep -F 'polychromatic-helper --autostart' "$LUA" | command grep -q 'StatusNotifierWatcher'; then
     ok "Polychromatic launch is watcher-aware"
 else bad "Polychromatic can race Waybar at login"; fi
-TOOLBOX_CMD="/usr/bin/jetbrains-toolbox --minimize"
+TOOLBOX_CMD="/usr/bin/jetbrains-toolbox --jvm-args=$HOME/.config/JetBrains/Toolbox/toolbox.vmoptions --minimize"
 if command grep -F "$TOOLBOX_CMD" "$LUA" | command grep -q 'StatusNotifierWatcher'; then
-    ok "JetBrains Toolbox launch is watcher-aware and uses the package defaults"
+    ok "JetBrains Toolbox launch is watcher-aware and uses process-local JVM options"
 else bad "JetBrains Toolbox login launch is stale or can race Waybar"; fi
 if command grep -Fq 'busctl --user status org.kde.StatusNotifierWatcher' "$HOME/.config/hypr/scripts/pia-launch.sh"; then
     ok "PIA launch is watcher-aware"
@@ -198,9 +198,8 @@ if command grep -Fq "/usr/bin/polychromatic-tray-applet" "$RESTART" && command g
 else bad "tray recovery omits Polychromatic"; fi
 if command grep -Fq "$TOOLBOX_CMD" "$RESTART" \
         && ! command grep -Fq "$HOME/.local/share/JetBrains/Toolbox/bin/jetbrains-toolbox" "$RESTART" \
-        && ! command grep -Fq -- '--jvm-args=' "$RESTART" \
         && ! command grep -Fq 'GDK_SCALE=1' "$RESTART"; then
-    ok "tray recovery uses the packaged Toolbox launcher without scale overrides"
+    ok "tray recovery uses the packaged Toolbox launcher and process-local JVM options"
 else bad "tray recovery still uses an obsolete Toolbox launcher or scaling override"; fi
 
 echo "== 10. no config errors in the current session log"
@@ -321,7 +320,7 @@ cat <<'MANUAL'
 Manual spot-checks (behaviour no API can confirm):
   SUPER + LMB drag / RMB resize    MOUSE BINDS — most important, see note below
   SUPER+slash                      cycle monitor scale      (was silently broken)
-  open JetBrains Toolbox           lands inside MSI monitor (bounded fallback)
+  open JetBrains Toolbox           repositions correctly    (was silently broken)
   reboot, then check PIA           hidden at startup; Show Window remaps
   wlogout -> Logout                exits cleanly            (was silently broken)
   SUPER+G then SUPER+ALT+Tab       group toggle + cycle
