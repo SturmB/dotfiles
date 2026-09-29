@@ -7,29 +7,7 @@
 --   /usr/share/hypr/hyprland.lua       — upstream example config
 -- Check syntax without starting a session: Hyprland --verify-config
 
-
-------------------
----- MONITORS ----
-------------------
-
--- See https://wiki.hypr.land/Configuring/Basics/Monitors/
-hl.monitor({ output = "DP-1", mode = "preferred", position = "0x0",        scale = 1.066667 }) -- MSI (left, primary)
-hl.monitor({ output = "DP-2", mode = "preferred", position = "auto-right", scale = 1.666667 }) -- Dell (right)
-
-hl.config({
-    xwayland = {
-        force_zero_scaling = true,
-    },
-})
-
--- Bind workspaces to monitors: 1-5 on MSI, 6-10 on Dell
-for i = 1, 10 do
-    hl.workspace_rule({
-        workspace = tostring(i),
-        monitor   = i <= 5 and "DP-1" or "DP-2",
-        default   = (i == 1 or i == 6) or nil,
-    })
-end
+require("modules.monitors")
 
 
 ---------------------
