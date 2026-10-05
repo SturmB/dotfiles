@@ -29,3 +29,17 @@ if layout then
     layout:close()
     require("monitors")
 end
+
+-- Aurora capture card: mirror the MSI gaming monitor, not a third desktop.
+-- Keep this after the nwg-displays layout so GUI saves do not override it.
+hl.monitor({
+    output = "HDMI-A-1",
+    mode = "3840x2160@60",
+    position = "4704x0", -- Fallback position if mirroring is later removed.
+    scale = 1,
+    transform = 0,
+    vrr = 0,
+    mirror = "DP-1",
+    bitdepth = 8,
+    cm = "srgb",
+})
