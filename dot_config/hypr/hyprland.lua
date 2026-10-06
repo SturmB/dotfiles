@@ -508,6 +508,12 @@ hl.window_rule({
     name  = "zoom-annotation-toolbar",
     match = { class = "^zoom$", title = "^annotate_toolbar$" },
     float = true,
+    decorate = false,
+    border_size = 0,
+    no_shadow = true,
+    rounding = 0,
+    no_anim = true,
+    no_initial_focus = true,
 })
 
 -- Smile emoji picker
