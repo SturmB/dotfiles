@@ -509,7 +509,6 @@ hl.window_rule({
     match = { class = "^zoom$", title = "^annotate_toolbar$" },
     float = true,
     decorate = false,
-    no_blur = true,
     border_size = 0,
     no_shadow = true,
     rounding = 0,
