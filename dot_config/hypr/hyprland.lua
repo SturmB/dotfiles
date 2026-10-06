@@ -503,6 +503,13 @@ hl.window_rule({
     no_focus = true,
 })
 
+-- Zoom annotation toolbar is an overlay, not a tiled meeting window.
+hl.window_rule({
+    name  = "zoom-annotation-toolbar",
+    match = { class = "^zoom$", title = "^annotate_toolbar$" },
+    float = true,
+})
+
 -- Smile emoji picker
 hl.window_rule({
     name   = "smile-emoji-picker",
