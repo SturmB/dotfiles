@@ -37,8 +37,12 @@ paths. It does not run the Oh My Zsh installer or `chsh`: Bash remains the login
 shell. Launch `zsh` explicitly after review to try the shared shell configuration.
 
 Defaults preserve Omarchy's `.bashrc`, `.profile`, Ghostty configuration (including
-its theme/includes), and `.config/mise`. The CachyOS Hyprland/Waybar and
-clipboard-image targets stay disabled; Omarchy's desktop is not replaced.
+its theme/includes), `.config/mise`, btop, and tmux (`.tmux.conf` and
+`.config/tmux`). Micro and PHP configuration are also excluded on Omarchy.
+Espanso remains managed, including the shared expansions and Titan's custom
+`vaniam.yml` expansion (personal/stream profiles only).
+The CachyOS Hyprland/Waybar and clipboard-image targets stay disabled;
+Omarchy's desktop is not replaced.
 Personal credentials remain YNAB and OpenRouter, and generic personal/development
 tooling remains managed. These exclusions are not a blanket protection for every
 existing file: review the remaining diff, especially shared application settings.

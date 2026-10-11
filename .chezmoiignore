@@ -12,13 +12,23 @@ tests
 .bashrc
 {{ end }}
 {{ if eq .chezmoi.osRelease.id "omarchy" }}
-# Omarchy owns terminal theme/includes and runtime configuration.
+# Preserve Omarchy's terminal, monitor, and multiplexer configuration.
 .config/ghostty
+.config/btop
+.tmux.conf
+.config/tmux
+# Optional editor and PHP configuration are not needed on Omarchy.
+.config/micro
+.config/php
 {{ $globalTools := false }}
 {{ if hasKey . "miseGlobalTools" }}{{ $globalTools = .miseGlobalTools }}{{ end }}
 {{ if not $globalTools }}
 .config/mise
 {{ end }}
+{{ end }}
+{{ if not .personal }}
+# Personal custom expansions belong only to personal/stream profiles.
+.config/espanso/match/vaniam.yml
 {{ end }}
 {{ if not .work }}
 .config/php

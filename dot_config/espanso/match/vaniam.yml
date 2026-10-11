@@ -1,0 +1,3 @@
+matches:
+  - trigger: ";emv"
+    replace: "chrism@vaniamgroup.com"

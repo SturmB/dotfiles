@@ -70,6 +70,25 @@ class OmarchyTests(unittest.TestCase):
         self.assertIn('.config/mise/config.toml', self.run_chezmoi('managed').splitlines())
         self.assertIn('mise install node', self.render('run_onchange_after_install-mise-tools.sh.tmpl'))
 
+    def test_excludes_optional_application_config_but_keeps_espanso(self):
+        excluded = ('.config/btop', '.tmux.conf', '.config/tmux', '.config/micro', '.config/php')
+        # Include a tmux config-directory fixture even if the repository only has
+        # .tmux.conf today; exclusions must protect future nested targets too.
+        tmux = self.src / 'dot_config/tmux'
+        tmux.mkdir(exist_ok=True)
+        (tmux / 'tmux.conf').write_text('# test fixture\n')
+        for profile in ('personal', 'work', 'stream', 'server'):
+            with self.subTest(profile=profile):
+                self.configure(profile)
+                managed = set(self.run_chezmoi('managed').splitlines())
+                for target in excluded:
+                    with self.subTest(target=target):
+                        self.assertFalse(any(name == target or name.startswith(target + '/')
+                                             for name in managed), target)
+                for target in ('.config/espanso/config/default.yml',
+                               '.config/espanso/match/base.yml', '.config/espanso/match/personal.yml'):
+                    self.assertIn(target, managed)
+
     def stub_environment(self, rtk_present=True):
         bin_dir = self.tmp / 'stub-bin'
         bin_dir.mkdir()

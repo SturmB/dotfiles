@@ -39,8 +39,14 @@ with tempfile.TemporaryDirectory() as tmp:
             assert ('.config/hypr/hyprland.lua' in managed) == (distro == 'cachyos')
             assert '.gitconfig-work' not in managed
             assert ('.local/bin/edit-clipboard-image' in managed) == (distro == 'cachyos')
+        # Omarchy-only exclusions must not change the other distro profiles.
+        for name in ['.config/btop', '.tmux.conf', '.config/micro']:
+            assert (name in managed) == (distro != 'omarchy'), (distro, profile, name)
+        assert ('.config/php/conf.d/99-custom.ini' in managed) == (data['work'] and distro != 'omarchy')
+        for name in ['.config/espanso/config/default.yml', '.config/espanso/match/base.yml', '.config/espanso/match/personal.yml']:
+            assert name in managed, (distro, profile, name)
+        assert ('.config/espanso/match/vaniam.yml' in managed) == data['personal'], (distro, profile)
         if profile == 'work':
-            assert '.config/php/conf.d/99-custom.ini' in managed
             assert '.config/hypr' not in managed
         if profile == 'server':
             assert ('.profile' in managed and '.bashrc' in managed) == (distro != 'omarchy')
