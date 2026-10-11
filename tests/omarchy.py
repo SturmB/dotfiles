@@ -100,6 +100,46 @@ esac''')
         return dict(HOME=str(self.home), PATH=str(bin_dir), SHELL='/bin/bash',
                     STUB_BIN=str(bin_dir), COMMAND_LOG=str(log)), log
 
+    def test_plugin_sources_execute_with_default_and_custom_directories(self):
+        env, log = self.stub_environment()
+        self.configure('server')
+        # Keep runtime source tests closed to host executables and startup files.
+        tput = self.tmp / 'stub-bin/tput'
+        tput.write_text('#!/bin/bash\nexit 0\n')
+        tput.chmod(0o755)
+        zsh = shutil.which('zsh')
+        self.assertIsNotNone(zsh)
+        common = self.home / '.config/zsh/common.zsh'
+        common.parent.mkdir(parents=True)
+        common.write_text(self.render('dot_config/zsh/common.zsh.tmpl'))
+        (self.home / '.aliases').write_text('')
+        zshrc = self.home / '.zshrc'
+        zshrc.write_text(self.render('dot_zshrc.tmpl'))
+        bootstrap = self.tmp / 'bootstrap.sh'
+        bootstrap.write_text(self.render('run_once_before_install-packages.sh.tmpl'))
+        bootstrap.chmod(0o755)
+        for custom in (False, True):
+            with self.subTest(custom=custom):
+                if custom:
+                    # Remove the default fixture to detect fallback to hardcoded paths.
+                    shutil.rmtree(self.home / '.oh-my-zsh/custom')
+                    env['ZSH_CUSTOM'] = str(self.home / 'custom plugins')
+                plugin_root = pathlib.Path(env.get('ZSH_CUSTOM', self.home / '.oh-my-zsh/custom'))
+                subprocess.run([str(bootstrap)], env=env, capture_output=True, text=True, check=True)
+                (self.home / '.oh-my-zsh/oh-my-zsh.sh').write_text('typeset -ga loaded; loaded+=(omz)\n')
+                for plugin in ('zsh-autosuggestions', 'zsh-history-substring-search', 'zsh-syntax-highlighting'):
+                    plugin_dir = plugin_root / 'plugins' / plugin
+                    self.assertTrue(plugin_dir.is_dir())
+                    (plugin_dir / (plugin + '.zsh')).write_text('loaded+=(' + plugin + ')\n')
+                # Completion initialization is outside this plugin-path fixture's scope.
+                result = subprocess.run([zsh, '-f', '-c',
+                    'autoload() { :; }; compinit() { :; }; source "$HOME/.zshrc"; printf "%s\\n" "${loaded[@]}"'],
+                    env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, '')
+                self.assertEqual(result.stdout.splitlines(), ['omz', 'zsh-autosuggestions',
+                    'zsh-history-substring-search', 'zsh-syntax-highlighting'])
+
     def test_mise_opt_in_and_opt_out_execute_matching_policy(self):
         env, log = self.stub_environment()
         for enabled in (False, True):
@@ -115,8 +155,41 @@ esac''')
                 self.assertEqual(log.read_text().splitlines(), ['mise install node', 'mise install'] if enabled else [])
                 self.assertEqual('provisioning disabled' in result.stdout, not enabled)
 
+    def test_once_script_persistent_state_tracks_rendered_content(self):
+        env, _ = self.stub_environment()
+        # Only this harmless fixture is applied, never the repository's targets.
+        source = self.tmp / 'once-source'
+        source.mkdir()
+        template = source / 'run_once_before_probe.sh.tmpl'
+        template.write_text('#!/bin/bash\nset -eu\nprintf "%s\\n" "{{ .revision }}" >> "$HOME/once.log"\n')
+        config = self.tmp / 'once-config.json'
+        command = [shutil.which('chezmoi'), '--config', str(config), '--source', str(source),
+                   '--destination', str(self.home), '--persistent-state', str(self.tmp / 'once-state.db'),
+                   '--no-tty', 'apply']
+        config.write_text(json.dumps({'data': {'revision': 'first'}}))
+        def apply():
+            result = subprocess.run(command, env=env, text=True, capture_output=True, check=True)
+            self.assertEqual(result.stderr, '')
+            return (self.home / 'once.log').read_text().splitlines()
+        self.assertEqual(apply(), ['first'])
+        self.assertEqual(apply(), ['first'])
+        # The template itself is unchanged: changing data changes its rendered hash.
+        config.write_text(json.dumps({'data': {'revision': 'second'}}))
+        self.assertEqual(apply(), ['first', 'second'])
+        self.assertEqual(apply(), ['first', 'second'])
+
+    def test_readme_warns_changed_once_script_can_rerun(self):
+        readme = (self.src / 'README.md').read_text()
+        self.assertIn('rendered content hash', readme)
+        self.assertIn('changed content reruns on the next script-enabled apply', readme)
+        self.assertNotIn('will not automatically rerun this new branch', readme)
+
     def test_bootstrap_installs_arch_packages_and_local_plugins_without_chsh(self):
         env, log = self.stub_environment(rtk_present=False)
+        sentinels = {'.bashrc': b'# native Bash sentinel\r\nexport NATIVE=1\n',
+                     '.profile': b'# native login sentinel\n\n# preserve trailing bytes\x00'}
+        for name, content in sentinels.items():
+            (self.home / name).write_bytes(content)
         script = self.render('run_once_before_install-packages.sh.tmpl')
         generated = self.tmp / 'install-packages.sh'
         generated.write_text(script)
@@ -146,11 +219,15 @@ esac''')
         self.assertNotIn('/usr/share/oh-my-zsh', common)
         for name in ('dot_zshrc.tmpl', 'dot_config/zsh/common.zsh.tmpl', 'dot_zprofile.tmpl'):
             subprocess.run(['zsh', '-n'], input=self.render(name), text=True, check=True)
+        for name, content in sentinels.items():
+            self.assertEqual((self.home / name).read_bytes(), content)
         # Repeating the generated executable must not reclone or reinstall RTK.
         log.write_text('')
         second = subprocess.run([str(generated)], env=env, text=True, capture_output=True, check=True)
         self.assertNotIn('[install] rtk', second.stdout)
         self.assertFalse(any(line.startswith(('git ', 'curl ')) for line in log.read_text().splitlines()))
+        for name, content in sentinels.items():
+            self.assertEqual((self.home / name).read_bytes(), content)
 
 
 if __name__ == '__main__':

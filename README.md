@@ -53,10 +53,14 @@ safe default; explicit `false` keeps both config and runtime installation disabl
 Use the preview-first bootstrap above, not `init --apply` on an existing host.
 For staged configuration reconciliation, review exact paths and use
 `chezmoi apply --exclude=scripts -- <approved-paths>`; package bootstrap is a
-separate sudo/network action. A host that already recorded the once-only script
-will not automatically rerun this new branch; review the rendered script before
-any deliberate rerun. Nothing here changes terminal launch settings, logs out the
-session, migrates pre-existing managed files, or removes previously deployed files.
+separate sudo/network action. Chezmoi records `run_once` scripts by their
+rendered content hash: unchanged content does not rerun, but
+changed content reruns on the next script-enabled apply, even on a host that
+already ran the bootstrap. Template or local data changes can change that hash.
+Keep scripts excluded until the rendered bootstrap and its sudo/network actions
+have been reviewed and approved; do not rely on a previous run as protection.
+Nothing here changes terminal launch settings, logs out the session, migrates
+pre-existing managed files, or removes previously deployed files.
 
 ## Maintenance and testing
 
@@ -67,6 +71,6 @@ python3 "$(chezmoi source-path)/tests/profiles.py"
 python3 "$(chezmoi source-path)/tests/omarchy.py"
 ```
 
-Tests render all four profiles (including Omarchy) in temporary directories, substitute a non-secret fixture for encrypted values, check target membership/credential variable selection and shell syntax, and exercise the Claude settings merge. Omarchy tests also execute generated bootstrap and mise scripts with an isolated PATH of command stubs, checking package selection, local plugin paths, repeat-run behavior, and runtime opt-in/opt-out. They do not access the network, install real packages, change shells, or apply the live configuration.
+Tests render all four profiles (including Omarchy) in temporary directories, substitute a non-secret fixture for encrypted values, check target membership/credential variable selection and shell syntax, and exercise the Claude settings merge. Omarchy tests also execute generated bootstrap and mise scripts with an isolated PATH of command stubs, checking package selection, native startup-file byte preservation, local plugin paths, repeat-run behavior, and runtime opt-in/opt-out. Runtime zsh fixtures source plugins from default and custom directories; a harmless isolated chezmoi fixture verifies persistent `run_once` rendered-content tracking. They do not access the network, install real packages, change shells, or apply the live configuration.
 
-The bootstrap requires working network access and sudo for packages. RTK installation is mandatory for the Claude hook; Ubuntu package installation includes jq and gh. Existing hosts that already ran a `run_once` bootstrap may need newly added dependencies installed separately.
+The bootstrap requires working network access and sudo for packages. RTK installation is mandatory for the Claude hook; Ubuntu package installation includes jq and gh. When scripts are excluded, newly added dependencies must be installed separately or through a reviewed, approved script-enabled apply.
