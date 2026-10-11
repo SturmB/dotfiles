@@ -15,7 +15,7 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 #
 # mise config hash: {{ include "dot_config/mise/config.toml.tmpl" | sha256sum }}
 
-{{ $globalTools := ne .chezmoi.hostname "titan" -}}
+{{ $globalTools := and (ne .chezmoi.hostname "titan") (ne .chezmoi.osRelease.id "omarchy") -}}
 {{ if hasKey . "miseGlobalTools" -}}{{ $globalTools = .miseGlobalTools -}}{{ end -}}
 {{ if not $globalTools -}}
 echo "[mise] global runtime provisioning disabled for this host"

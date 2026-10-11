@@ -66,7 +66,7 @@ command -v starship >/dev/null && eval "$(starship init zsh)"
 {{ if eq .chezmoi.osRelease.id "cachyos" -}}
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 {{- else -}}
-source "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+source "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 {{- end }}
 
 # zoxide (cd replacement) — initialized last so its precmd/chpwd hook is the

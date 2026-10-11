@@ -1,5 +1,5 @@
-{{/* Titan delegates runtimes outside global mise; other hosts retain provisioning. */}}
-{{ $globalTools := ne .chezmoi.hostname "titan" -}}
+{{/* Titan and Omarchy keep their existing runtime setup unless explicitly opted in. */}}
+{{ $globalTools := and (ne .chezmoi.hostname "titan") (ne .chezmoi.osRelease.id "omarchy") -}}
 {{ if hasKey . "miseGlobalTools" -}}
 {{ $globalTools = .miseGlobalTools -}}
 {{ end -}}
