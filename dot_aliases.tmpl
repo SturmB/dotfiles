@@ -43,6 +43,19 @@ alias c="clear"
 alias dq='tmux kill-session'
 claude-review() { claude --dangerously-skip-permissions "/code-review $*"; }
 
+# Herdr/Ghostty Shift+Enter workaround for Hermes (upstream issue #4835).
+# https://github.com/herdrdev/herdr/issues/4835#issuecomment-6103743884
+# Keep the override process-local; never export a fake terminal identity globally.
+# `command` bypasses this function and preserves the installed launcher's PATH lookup.
+# Remove this function after an upstream fix passes a test without the override.
+hermes() {
+    if [ "${HERDR_ENV:-}" = "1" ] || [ "${TERM_PROGRAM:-}" = "herdr" ]; then
+        TERM_PROGRAM=ghostty command hermes "$@"
+    else
+        command hermes "$@"
+    fi
+}
+
 
 
 
