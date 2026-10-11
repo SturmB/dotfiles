@@ -13,8 +13,10 @@ with tempfile.TemporaryDirectory() as tmp:
     shutil.copytree(ROOT, src, ignore=shutil.ignore_patterns('.git', '.store', 'tests'))
     secrets = src / 'private_dot_secrets.tmpl'
     secrets.write_text(re.sub(r'{{ joinPath .*? }}', 'TEST_ONLY', secrets.read_text()))
-    for profile, distro in [('stream', 'ubuntu'), ('work', 'ubuntu'), ('personal', 'cachyos'), ('server', 'ubuntu')]:
-        dest = tmp / profile
+    cases = [('stream', 'ubuntu'), ('work', 'ubuntu'), ('personal', 'cachyos'), ('server', 'ubuntu')]
+    cases += [(profile, 'omarchy') for profile in ('personal', 'work', 'stream', 'server')]
+    for profile, distro in cases:
+        dest = tmp / (profile + '-' + distro)
         dest.mkdir()
         config = tmp / (profile + '.json')
         data = dict(profile=profile, personal=profile in ('personal', 'stream'), work=profile in ('personal', 'work'), server=profile == 'server')
@@ -29,18 +31,19 @@ with tempfile.TemporaryDirectory() as tmp:
         if profile == 'stream':
             for name in ['.bashrc', '.profile', '.gitconfig-work', '.config/php', '.config/hypr', '.config/waybar', '.config/atlassian', '.config/espanso/match/IEL.yml', '.local/bin/edit-clipboard-image', '.local/bin/hyprlock-logged', '.claude/skills/lerd', '.claude/commands/prs-to-review.md']:
                 assert name not in managed, name
-            for name in ['.zshrc', '.config/starship.toml', '.claude/settings.json', '.claude/commands/code-recheck.md', '.config/mise/config.toml']:
+            for name in ['.zshrc', '.config/starship.toml', '.claude/settings.json', '.claude/commands/code-recheck.md']:
                 assert name in managed, name
+            assert ('.config/mise/config.toml' in managed) == (distro != 'omarchy')
             assert 'intxlog' not in render('dot_gitconfig.tmpl')
         if profile == 'personal':
-            assert '.config/hypr/hyprland.lua' in managed
+            assert ('.config/hypr/hyprland.lua' in managed) == (distro == 'cachyos')
             assert '.gitconfig-work' not in managed
-            assert '.local/bin/edit-clipboard-image' in managed
+            assert ('.local/bin/edit-clipboard-image' in managed) == (distro == 'cachyos')
         if profile == 'work':
             assert '.config/php/conf.d/99-custom.ini' in managed
             assert '.config/hypr' not in managed
         if profile == 'server':
-            assert '.profile' in managed and '.bashrc' in managed
+            assert ('.profile' in managed and '.bashrc' in managed) == (distro != 'omarchy')
             assert '.ssh/id_ed25519_iel' not in managed
         import tomllib
         zshrc = render('dot_zshrc.tmpl')
@@ -62,10 +65,11 @@ with tempfile.TemporaryDirectory() as tmp:
             override = json.dumps({'chezmoi': {'hostname': hostname, 'osRelease': {'id': distro}}})
             text = run('--override-data', override, 'execute-template', '--file', str(src / 'dot_config/mise/config.toml.tmpl'))
             mise = tomllib.loads(text)
-            assert bool(mise.get('tools')) == (hostname != 'titan')
-            assert ('PHP_INI_SCAN_DIR' in mise.get('env', {})) == (hostname != 'titan' and distro != 'ubuntu')
+            enabled = hostname != 'titan' and distro != 'omarchy'
+            assert bool(mise.get('tools')) == enabled
+            assert ('PHP_INI_SCAN_DIR' in mise.get('env', {})) == (enabled and distro != 'ubuntu')
             assert '--with-imap' not in mise.get('env', {}).get('PHP_CONFIGURE_OPTIONS', '')
-        print('PASS:', profile, 'shell syntax, completion ordering, Hunk isolation, mise host isolation')
+        print('PASS:', profile, distro, 'shell syntax, completion ordering, Hunk isolation, mise host isolation')
         forbidden_targets = {'.gitconfig-work', '.ssh/id_ed25519_iel', '.ssh/id_ed25519_iel.pub', '.config/atlassian/credentials', '.config/espanso/match/IEL.yml', '.claude/commands/guideline-triage.md', '.claude/commands/review-multi-prs.md'}
         assert not forbidden_targets.intersection(managed)
         for name in ['private_dot_ssh/private_config.tmpl', 'dot_gitconfig.tmpl', 'dot_aliases.tmpl', 'dot_zshrc.tmpl', 'run_once_before_install-packages.sh.tmpl']:
@@ -73,11 +77,12 @@ with tempfile.TemporaryDirectory() as tmp:
         for hostname in ['titan', 'another-host']:
             override = json.dumps({'chezmoi': {'hostname': hostname, 'osRelease': {'id': distro}}})
             script = run('--override-data', override, 'execute-template', '--file', str(src / 'run_onchange_after_install-mise-tools.sh.tmpl'))
-            assert ('mise install node' in script) == (hostname != 'titan')
-            if hostname == 'titan':
+            enabled = hostname != 'titan' and distro != 'omarchy'
+            assert ('mise install node' in script) == enabled
+            if not enabled:
                 result = subprocess.run(['bash'], input=script, text=True, capture_output=True, check=True)
                 assert 'provisioning disabled' in result.stdout
-        print('PASS:', profile, 'IEL targets/consumers absent; disabled mise installer executes no installs')
+        print('PASS:', profile, distro, 'IEL targets/consumers absent; disabled mise installer executes no installs')
         zprofile = render('dot_zprofile.tmpl')
         assert ('xdg-ubuntustudio-dirs.sh' in zprofile) == (distro == 'ubuntu')
         subprocess.run(['zsh', '-n'], input=zprofile, text=True, check=True)
@@ -92,7 +97,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert names == expected, (profile, names)
         for name in ['run_once_before_install-packages.sh.tmpl', 'run_onchange_after_install-php-apt.sh.tmpl', 'run_onchange_after_install-mise-tools.sh.tmpl']:
             subprocess.run(['bash', '-n'], input=render(name), text=True, check=True)
-        assert ('php8.5-cli' in render('run_onchange_after_install-php-apt.sh.tmpl')) == (profile == 'work')
+        assert ('php8.5-cli' in render('run_onchange_after_install-php-apt.sh.tmpl')) == (profile == 'work' and distro == 'ubuntu')
         settings = dest / '.claude/settings.json'
         settings.parent.mkdir(parents=True, exist_ok=True)
         settings.write_text('{"permissions":{"allow":["Read"]}}')
@@ -100,8 +105,8 @@ with tempfile.TemporaryDirectory() as tmp:
         run('apply', '--force', '--exclude=scripts', str(settings))
         assert settings.stat().st_mode & 0o777 == 0o600
         assert json.loads(settings.read_text())['permissions'] == {'allow': ['Read']}
-        print('PASS:', profile, 'Claude settings apply preserves private mode and local permissions')
-        print('PASS:', profile, 'target filtering, credential selection, rendered script syntax')
+        print('PASS:', profile, distro, 'Claude settings apply preserves private mode and local permissions')
+        print('PASS:', profile, distro, 'target filtering, credential selection, rendered script syntax')
     # The existing permission policy must survive the Claude settings merge.
     current = {'permissions': {'defaultMode': 'default', 'allow': ['Read']}, 'theme': 'dark'}
     merged = json.loads(subprocess.run(['bash', str(src/'dot_claude/modify_private_settings.json')], input=json.dumps(current), text=True, capture_output=True, check=True).stdout)

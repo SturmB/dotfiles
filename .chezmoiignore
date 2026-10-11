@@ -6,10 +6,19 @@ windows-terminal
 README.md
 tests
 
-{{ if eq .profile "stream" }}
-# Preserve Ubuntu login/PATH and Bash fallback configuration.
+{{ if or (eq .profile "stream") (eq .chezmoi.osRelease.id "omarchy") }}
+# Preserve distro login/PATH and Bash fallback configuration.
 .profile
 .bashrc
+{{ end }}
+{{ if eq .chezmoi.osRelease.id "omarchy" }}
+# Omarchy owns terminal theme/includes and runtime configuration.
+.config/ghostty
+{{ $globalTools := false }}
+{{ if hasKey . "miseGlobalTools" }}{{ $globalTools = .miseGlobalTools }}{{ end }}
+{{ if not $globalTools }}
+.config/mise
+{{ end }}
 {{ end }}
 {{ if not .work }}
 .config/php

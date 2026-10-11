@@ -17,6 +17,22 @@ echo "[install] CachyOS — ensuring starship is present"
 sudo pacman -S --needed --noconfirm starship jq github-cli
 
 
+{{- else if eq .chezmoi.osRelease.id "omarchy" -}}
+# ===== Omarchy: Arch packages, user-local OMZ, native Bash login =============
+echo "[install] Omarchy — shell and CLI packages"
+sudo pacman -S --needed --noconfirm zsh git curl unzip starship jq github-cli fzf ripgrep fd bat zoxide eza lsd
+
+# Clone rather than running OMZ's installer: do not rewrite shell startup files.
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+  git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh"
+fi
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+for name in zsh-autosuggestions zsh-syntax-highlighting zsh-history-substring-search; do
+  dest="$ZSH_CUSTOM/plugins/$name"
+  [ -d "$dest" ] || git clone --depth=1 "https://github.com/zsh-users/$name" "$dest"
+done
+echo "[install] Omarchy — keeping Bash login shell; launch zsh explicitly to try it"
+
 {{- else -}}
 # ===== Non-Arch: detect package manager at runtime ==========================
 if command -v apt >/dev/null 2>&1; then
