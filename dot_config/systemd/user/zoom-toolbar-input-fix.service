@@ -1,0 +1,15 @@
+[Unit]
+Description=Repair Zoom XWayland sharing toolbar input
+PartOf=hyprland-session.target graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.config/hypr/scripts/zoom-toolbar-input-fix.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=hyprland-session.target

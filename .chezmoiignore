@@ -49,6 +49,8 @@ install-php-apt.sh
 .config/wlogout
 .config/azote
 .local/bin/hyprlock-logged
+.config/systemd/user/zoom-toolbar-input-fix.service
+.config/systemd/user/hyprland-session.target.wants/zoom-toolbar-input-fix.service
 {{ end }}
 {{ $clipboard := $hyprland }}
 {{ if hasKey . "clipboardImage" }}{{ $clipboard = .clipboardImage }}{{ end }}
