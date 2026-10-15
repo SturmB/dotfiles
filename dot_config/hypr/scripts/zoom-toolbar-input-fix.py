@@ -6,10 +6,29 @@ import json
 import os
 from pathlib import Path
 import signal
-import time
+import select
 
 U = C.c_ulong
 P = C.c_void_p
+
+
+class AnyEvent(C.Structure):
+    _fields_ = [('type', C.c_int), ('serial', U), ('send_event', C.c_int),
+                ('display', P), ('window', U)]
+
+
+class StructureEvent(C.Structure):
+    _fields_ = AnyEvent._fields_[:-1] + [('parent', U), ('window', U)]
+
+
+class PropertyEvent(C.Structure):
+    _fields_ = AnyEvent._fields_ + [('atom', U), ('time', U), ('state', C.c_int)]
+
+
+class Event(C.Union):
+    _fields_ = [('type', C.c_int), ('any', AnyEvent),
+                ('structure', StructureEvent), ('property', PropertyEvent),
+                ('padding', C.c_long * 24)]
 
 
 def remove_tooltip(values, tooltip):
@@ -33,6 +52,10 @@ class X11:
             'XFree': ([P], C.c_int),
             'XSync': ([P, C.c_int], C.c_int),
             'XCloseDisplay': ([P], C.c_int),
+            'XSelectInput': ([P, U, C.c_long], C.c_int),
+            'XPending': ([P], C.c_int),
+            'XNextEvent': ([P, C.POINTER(Event)], C.c_int),
+            'XConnectionNumber': ([P], C.c_int),
         }
         for name, (args, result) in specs.items():
             fn = getattr(self.x, name)
@@ -89,10 +112,10 @@ class X11:
                     if children:
                         self.x.XFree(children)
 
-    def repair(self):
+    def repair(self, windows=None):
         repaired = []
         self.errors.clear()
-        for window in self.windows():
+        for window in self.windows() if windows is None else windows:
             if self.prop(window, 'WM_NAME') != b'as_toolbar':
                 continue
             wm_class = self.prop(window, 'WM_CLASS') or b''
@@ -132,18 +155,51 @@ class X11:
         return repaired
 
 
+def watch(connection):
+    # Subscribe before the initial scan so no newly created toolbar is missed.
+    # These masks are per-client and do not intercept input or manage windows.
+    property_change = 1 << 22
+    substructure_notify = 1 << 19
+    root = connection.x.XDefaultRootWindow(connection.d)
+    connection.x.XSelectInput(connection.d, root, substructure_notify)
+    watched = set()
+
+    def subscribe(window):
+        if window not in watched:
+            connection.x.XSelectInput(connection.d, window,
+                                     property_change | substructure_notify)
+            watched.add(window)
+        connection.repair([window])
+
+    for window in connection.windows():
+        subscribe(window)
+    connection.x.XSync(connection.d, 0)
+    relevant = {connection.atom(name) for name in
+                ('WM_NAME', 'WM_CLASS', '_NET_WM_PID', '_NET_WM_WINDOW_TYPE')}
+    fd = connection.x.XConnectionNumber(connection.d)
+    event = Event()
+    while True:
+        if not connection.x.XPending(connection.d):
+            # No timeout: zero periodic wakeups, including when Zoom is closed.
+            select.select([fd], [], [])
+            continue
+        connection.x.XNextEvent(connection.d, C.byref(event))
+        if event.type in (16, 19, 21):  # CreateNotify, MapNotify, ReparentNotify
+            subscribe(event.structure.window)
+        elif event.type == 17:  # DestroyNotify
+            watched.discard(event.structure.window)
+        elif event.type == 28 and event.property.atom in relevant:
+            connection.repair([event.property.window])
+
+
 def main():
-    running = True
     def stop(*_):
-        nonlocal running
-        running = False
+        raise SystemExit(0)
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     connection = X11()
     try:
-        while running:
-            connection.repair()
-            time.sleep(1)
+        watch(connection)
     finally:
         connection.x.XCloseDisplay(connection.d)
 
