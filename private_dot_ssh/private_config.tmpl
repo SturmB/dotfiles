@@ -1,6 +1,6 @@
 {{ if .personal }}
 # personal GitHub
-Host github.com-personal
+Host github.com
         HostName github.com
         User git
         IdentityFile ~/.ssh/id_ed25519
@@ -40,4 +40,15 @@ Host pihole
         User kerban
         IdentityFile ~/.ssh/id_ed25519
         IdentitiesOnly yes
+
+Host defiant
+        HostName defiant.local
+        HostKeyAlias defiant
+        AddressFamily inet
+        User kerban
+        Port 22
+        IdentityFile ~/.ssh/id_ed25519
+        IdentitiesOnly yes
+        StrictHostKeyChecking yes
+        ConnectTimeout 8
 {{ end }}
