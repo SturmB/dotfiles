@@ -4,7 +4,7 @@ Managed with chezmoi. Review the first diff before applying: scripts install pac
 
 ## Bootstrap
 
-Authorize a per-machine GitHub SSH key and verify `git ls-remote git@github.com:SturmB/dotfiles.git HEAD`. Personal and stream profiles need the age identity at `~/key.txt` (mode 600), transferred privately over SSH; work and server profiles render no credentials.
+Authorize a per-machine GitHub SSH key and verify `git ls-remote git@github.com:SturmB/dotfiles.git HEAD`. Personal, work and stream profiles need the age identity at `~/key.txt` (mode 600), transferred privately over SSH; server profiles render no credentials.
 
 ```sh
 sh -c "$(curl -fsLS https://get.chezmoi.io)" -- -b "$HOME/.local/bin" init --ssh SturmB
@@ -19,8 +19,8 @@ Choose `stream` for Aurora. `init` does not clone over an existing Git source di
 
 ## Profiles
 
-- `personal`: personal and development tooling, YNAB and OpenRouter; no former-employer credentials.
-- `work`: generic development tooling, no employer or personal API credentials.
+- `personal`: personal and development tooling, OpenRouter and Jira; no former-employer credentials.
+- `work`: generic development tooling and the Jira API token; no personal API credentials.
 - `stream`: shared zsh/CLI and Claude configuration, Node/mise, personal Git/SSH, OpenRouter only. Preserve existing `.profile` and `.bashrc`; exclude work identity/snippets/agent workflows, PHP configuration, and (by default) Hyprland and clipboard-image helpers.
 - `server`: no API credentials or employer SSH key. Retains the existing server shell behavior; this is not an exhaustive minimal-server profile audit.
 
@@ -43,7 +43,7 @@ Espanso remains managed, including the shared expansions and Titan's custom
 `vaniam.yml` expansion (personal/stream profiles only).
 The CachyOS Hyprland/Waybar and clipboard-image targets stay disabled;
 Omarchy's desktop is not replaced.
-Personal credentials remain YNAB and OpenRouter, and generic personal/development
+Personal credentials remain OpenRouter, and generic personal/development
 tooling remains managed. These exclusions are not a blanket protection for every
 existing file: review the remaining diff, especially shared application settings.
 

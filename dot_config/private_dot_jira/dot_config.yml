@@ -1,0 +1,430 @@
+auth_type: basic
+board:
+    id: 530
+    name: Ambassador Connect
+    type: scrum
+epic:
+    name: customfield_10011
+    link: customfield_10014
+installation: Cloud
+issue:
+    fields:
+        custom:
+            - name: Project overview status
+              key: customfield_10070
+              schema:
+                datatype: string
+            - name: Developer
+              key: customfield_10235
+              schema:
+                datatype: user
+            - name: Work item created forms
+              key: customfield_10348
+              schema:
+                datatype: array
+                items: Forms
+            - name: CV Folder Link
+              key: customfield_10460
+              schema:
+                datatype: string
+            - name: Unique Requests
+              key: customfield_10461
+              schema:
+                datatype: string
+            - name: Other Notes
+              key: customfield_10462
+              schema:
+                datatype: string
+            - name: Project overview key
+              key: customfield_10069
+              schema:
+                datatype: string
+            - name: Category
+              key: customfield_10103
+              schema:
+                datatype: option
+            - name: Template?
+              key: customfield_10456
+              schema:
+                datatype: option
+            - name: Template Link
+              key: customfield_10457
+              schema:
+                datatype: string
+            - name: Agent Sessions
+              key: customfield_10458
+              schema:
+                datatype: array
+                items: admin.customfield.type.agent.sessions.name
+            - name: Return Date (To Your Team)
+              key: customfield_10459
+              schema:
+                datatype: date
+            - name: CC Request Type
+              key: customfield_10451
+              schema:
+                datatype: option
+            - name: Incident manager
+              key: customfield_10572
+              schema:
+                datatype: user
+            - name: Advisory Board Date
+              key: customfield_10452
+              schema:
+                datatype: date
+            - name: Name of Advisory Board
+              key: customfield_10453
+              schema:
+                datatype: string
+            - name: Client
+              key: customfield_10454
+              schema:
+                datatype: option
+            - name: Therapeutic Expertise
+              key: customfield_10455
+              schema:
+                datatype: string
+            - name: Polling Consolidated?
+              key: customfield_10605
+              schema:
+                datatype: option
+            - name: Priority
+              key: customfield_10606
+              schema:
+                datatype: option
+            - name: Request participants
+              key: customfield_10169
+              schema:
+                datatype: array
+                items: user
+            - name: Story Status
+              key: customfield_10202
+              schema:
+                datatype: option
+            - name: Time to resolution
+              key: customfield_10313
+              schema:
+                datatype: sd-servicelevelagreement
+            - name: Time to first response
+              key: customfield_10314
+              schema:
+                datatype: sd-servicelevelagreement
+            - name: Time to close after resolution
+              key: customfield_10315
+              schema:
+                datatype: sd-servicelevelagreement
+            - name: Submitted forms
+              key: customfield_10030
+              schema:
+                datatype: number
+            - name: Open forms
+              key: customfield_10031
+              schema:
+                datatype: number
+            - name: Locked forms
+              key: customfield_10032
+              schema:
+                datatype: number
+            - name: Story Points
+              key: customfield_10033
+              schema:
+                datatype: number
+            - name: Vulnerability
+              key: customfield_10034
+              schema:
+                datatype: any
+            - name: Responders
+              key: customfield_10310
+              schema:
+                datatype: array
+                items: string
+            - name: Focus Areas
+              key: customfield_10035
+              schema:
+                datatype: array
+                items: Focus Areas
+            - name: Severity
+              key: customfield_10311
+              schema:
+                datatype: option
+            - name: Design
+              key: customfield_10036
+              schema:
+                datatype: array
+                items: design.field.name
+            - name: Affected hardware
+              key: customfield_10312
+              schema:
+                datatype: string
+            - name: Satisfaction
+              key: customfield_10302
+              schema:
+                datatype: sd-feedback
+            - name: '[CHART] Time in Status'
+              key: customfield_10027
+              schema:
+                datatype: any
+            - name: Satisfaction date
+              key: customfield_10303
+              schema:
+                datatype: datetime
+            - name: Goals
+              key: customfield_10028
+              schema:
+                datatype: array
+                items: Goals
+            - name: Request language
+              key: customfield_10304
+              schema:
+                datatype: sd-request-lang
+            - name: Total forms
+              key: customfield_10029
+              schema:
+                datatype: number
+            - name: Urgency
+              key: customfield_10305
+              schema:
+                datatype: option
+            - name: Affected services
+              key: customfield_10306
+              schema:
+                datatype: array
+                items: service-entity-field
+            - name: Pending reason
+              key: customfield_10307
+              schema:
+                datatype: option
+            - name: Approver groups
+              key: customfield_10308
+              schema:
+                datatype: array
+                items: group
+            - name: Major incident
+              key: customfield_10309
+              schema:
+                datatype: string
+            - name: Budget
+              key: customfield_10381
+              schema:
+                datatype: number
+            - name: Sprint
+              key: customfield_10020
+              schema:
+                datatype: array
+                items: json
+            - name: Flagged
+              key: customfield_10021
+              schema:
+                datatype: array
+                items: option
+            - name: Target start
+              key: customfield_10022
+              schema:
+                datatype: date
+            - name: Target end
+              key: customfield_10023
+              schema:
+                datatype: date
+            - name: Sentiment
+              key: customfield_10024
+              schema:
+                datatype: array
+                items: sd-sentiment
+            - name: Approx. Hrs
+              key: customfield_10420
+              schema:
+                datatype: string
+            - name: Department
+              key: customfield_10421
+              schema:
+                datatype: option
+            - name: Approvals
+              key: customfield_10025
+              schema:
+                datatype: sd-approvals
+            - name: Work category
+              key: customfield_10301
+              schema:
+                datatype: string
+            - name: '[CHART] Date of First Response'
+              key: customfield_10026
+              schema:
+                datatype: datetime
+            - name: PM Lead
+              key: customfield_10533
+              schema:
+                datatype: string
+            - name: Story point estimate
+              key: customfield_10016
+              schema:
+                datatype: number
+            - name: Sci Comm Lead
+              key: customfield_10534
+              schema:
+                datatype: string
+            - name: Issue color
+              key: customfield_10017
+              schema:
+                datatype: string
+            - name: Target Journal
+              key: customfield_10535
+              schema:
+                datatype: string
+            - name: Parent Link
+              key: customfield_10018
+              schema:
+                datatype: any
+            - name: Urgency (For CC)
+              key: customfield_10414
+              schema:
+                datatype: option
+            - name: 'iEnvision Document #'
+              key: customfield_10536
+              schema:
+                datatype: string
+            - name: Rank
+              key: customfield_10019
+              schema:
+                datatype: any
+            - name: Time Zone
+              key: customfield_10415
+              schema:
+                datatype: option
+            - name: Completion Time in Business Day Terms
+              key: customfield_10416
+              schema:
+                datatype: option
+            - name: Copyedit Date
+              key: customfield_10537
+              schema:
+                datatype: date
+            - name: Egnyte Link to Master Folder
+              key: customfield_10417
+              schema:
+                datatype: string
+            - name: Job Code
+              key: customfield_10418
+              schema:
+                datatype: string
+            - name: Event Type
+              key: customfield_10419
+              schema:
+                datatype: option
+            - name: Request Type
+              key: customfield_10010
+              schema:
+                datatype: sd-customerrequesttype
+            - name: Link to Otter Transcript
+              key: customfield_10494
+              schema:
+                datatype: string
+            - name: Link to Master Deck
+              key: customfield_10495
+              schema:
+                datatype: string
+            - name: Epic Status
+              key: customfield_10012
+              schema:
+                datatype: option
+            - name: Egnyte Link for Finished Transcript
+              key: customfield_10496
+              schema:
+                datatype: string
+            - name: Epic Color
+              key: customfield_10013
+              schema:
+                datatype: string
+            - name: Link to Polling Results
+              key: customfield_10497
+              schema:
+                datatype: string
+            - name: Vaniam Email Presence
+              key: customfield_10498
+              schema:
+                datatype: option
+            - name: Workfront Link
+              key: customfield_10531
+              schema:
+                datatype: string
+            - name: Start date
+              key: customfield_10015
+              schema:
+                datatype: date
+            - name: Timeline Link
+              key: customfield_10532
+              schema:
+                datatype: string
+            - name: Change type
+              key: customfield_10005
+              schema:
+                datatype: option
+            - name: Change risk
+              key: customfield_10006
+              schema:
+                datatype: option
+            - name: Change reason
+              key: customfield_10007
+              schema:
+                datatype: option
+            - name: Actual start
+              key: customfield_10008
+              schema:
+                datatype: datetime
+            - name: Actual end
+              key: customfield_10009
+              schema:
+                datatype: datetime
+            - name: Development
+              key: customfield_10000
+              schema:
+                datatype: any
+            - name: Team
+              key: customfield_10001
+              schema:
+                datatype: team
+            - name: Organizations
+              key: customfield_10002
+              schema:
+                datatype: array
+                items: sd-customerorganization
+            - name: Approvers
+              key: customfield_10003
+              schema:
+                datatype: array
+                items: user
+            - name: Impact
+              key: customfield_10004
+              schema:
+                datatype: option
+            - name: Status pages
+              key: customfield_10639
+              schema:
+                datatype: array
+                items: string
+    types:
+        - id: "10430"
+          name: Task
+          handle: Task
+          subtask: false
+        - id: "10431"
+          name: Sub-task
+          handle: Sub-task
+          subtask: true
+        - id: "10005"
+          name: Story
+          handle: Story
+          subtask: false
+        - id: "10432"
+          name: Bug
+          handle: Bug
+          subtask: false
+        - id: "10000"
+          name: Epic
+          handle: Epic
+          subtask: false
+login: chrism@vaniamgroup.com
+project:
+    key: AC
+    type: classic
+server: https://vaniamgroup-team.atlassian.net
+timezone: America/Los_Angeles

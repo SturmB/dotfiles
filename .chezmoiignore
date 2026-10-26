@@ -31,6 +31,7 @@ tests
 .config/espanso/match/vaniam.yml
 {{ end }}
 {{ if not .work }}
+.config/.jira
 .config/php
 .claude/skills/lerd
 .claude/commands/code-review.md

@@ -99,7 +99,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert '/etc/xdg/xdg-plasma' in probe.stdout.split(':')
         rendered = render('private_dot_secrets.tmpl')
         names = set(re.findall(r'^export (\w+)=', rendered, re.M))
-        expected = {'stream': {'OPENROUTER_API_KEY'}, 'work': set(), 'personal': {'YNAB_API_KEY', 'OPENROUTER_API_KEY'}, 'server': set()}[profile]
+        expected = {'stream': {'OPENROUTER_API_KEY'}, 'work': {'JIRA_API_TOKEN'}, 'personal': {'OPENROUTER_API_KEY', 'JIRA_API_TOKEN'}, 'server': set()}[profile]
         assert names == expected, (profile, names)
         for name in ['run_once_before_install-packages.sh.tmpl', 'run_onchange_after_install-php-apt.sh.tmpl', 'run_onchange_after_install-mise-tools.sh.tmpl']:
             subprocess.run(['bash', '-n'], input=render(name), text=True, check=True)

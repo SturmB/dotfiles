@@ -63,8 +63,8 @@ class OmarchyTests(unittest.TestCase):
                 self.assertIn('provisioning disabled', result.stdout)
                 self.assertNotIn('mise install node', installer)
                 names = set(re.findall(r'^export (\w+)=', self.render('private_dot_secrets.tmpl'), re.M))
-                expected = {'personal': {'YNAB_API_KEY', 'OPENROUTER_API_KEY'},
-                            'stream': {'OPENROUTER_API_KEY'}, 'work': set(), 'server': set()}
+                expected = {'personal': {'OPENROUTER_API_KEY', 'JIRA_API_TOKEN'},
+                            'stream': {'OPENROUTER_API_KEY'}, 'work': {'JIRA_API_TOKEN'}, 'server': set()}
                 self.assertEqual(names, expected[profile])
         self.configure(miseGlobalTools=True)
         self.assertIn('.config/mise/config.toml', self.run_chezmoi('managed').splitlines())
