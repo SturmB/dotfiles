@@ -59,6 +59,24 @@
       "body": "(updates available)",
       "app-name": "Cachy-Update",
       "override-urgency": "low"
+    },
+    "usb-ab-switch-hubs": {
+      "state": "ignored",
+      "app-name": "^System Notifications$",
+      "summary": "^USB Device (Detected|Removed)$",
+      "body": "^GenesysLogic USB[23]\\.1 Hub has been (connected|disconnected)\\.$"
+    },
+    "dell-monitor-switch": {
+      "state": "ignored",
+      "app-name": "^notify-send$",
+      "summary": "^Dell monitor$",
+      "body": "^Switched to Titan \\(DisplayPort\\)\\.$"
+    },
+    "monitor-switch-peripherals": {
+      "state": "ignored",
+      "app-name": "^System Notifications$",
+      "summary": "^USB Device (Detected|Removed)$",
+      "body": "^(4-Port USB 2\\.0 Hub|Logitech, Inc\\. Logitech StreamCam|Elgato Stream Deck XL) has been (connected|disconnected)\\.$"
     }
   },
   "widgets": [
